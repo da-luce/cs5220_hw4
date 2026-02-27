@@ -31,49 +31,19 @@ The hidden dimension $H$ is partitioned across the X-axis. Each PE holds a block
 
 Each PE at grid position $(x, y)$ stores:
 
-| Matrix | Block        | Dimensions     | Index range                                     |
-|--------|------------- |----------------|-------------------------------------------------|
-| A      | A(y, x)      | dM x dH        | rows [y*dM : (y+1)*dM], cols [x*dH : (x+1)*dH] |
-| B      | B(x, y)      | dH x dN_y      | rows [x*dH : (x+1)*dH], cols [y*dN_y : (y+1)*dN_y] |
-| C      | C(y, x)      | dM x dN         | rows [y*dM : (y+1)*dM], cols [x*dN : (x+1)*dN] |
+### Transpositions
 
-### Storage Layout and Transpositions
+All three matrices are transposed in local PE memory. $B$ is additionally transposed at the wafer level (block indices swapped). The host applies these transposes before `memcpy_h2d` and inverts on readback.
 
-**Per-PE memory layout.** All three matrices are transposed in memory relative to their logical shape. The host applies a transpose before copying to the device (and inverts it on readback), so each PE stores the transpose row-major:
+| Matrix | Logical shape | Wafer block index | Wafer transposed? | Local memory layout | Local transposed? | Reason |
+|--------|--------------|-------------------|-------------------|--------------------|--------------------|--------|
+| $A$    | $M \times H$   | $A(y, x)$         | No                | $A^T$: `dH x dM` row-major | Yes | Contiguous column reads for SAXPY |
+| $B$    | $H \times N$   | $B(x, y)$         | Yes               | $B^T$: `dN_y x dH` row-major | Yes | Contiguous column broadcast |
+| $C$    | $M \times N$   | $C(y, x)$         | No                | $C^T$: `dN x dM` row-major | Yes | Contiguous column writes from reduction |
 
-- **A** (logical `dM x dH`) is stored row-major as `dH x dM`, i.e. $A^T$. Each row of the stored layout (length `dM`) corresponds to a column of the logical $A$ block. A single linear DSD at offset `h * dM` reads the $h$-th column of $A$, enabling the wavelet-driven SAXPY: each incoming scalar $b_h$ is multiplied against a contiguous column of $A$.
-- **B** (logical `dH x dN_y`) is stored row-major as `dN_y x dH`, i.e. $B^T$. Each row of the stored layout (length `dH`) corresponds to one column of the logical $B$ block. When broadcast wavelet-by-wavelet, the receiver sees `dH` consecutive elements per $B$-column, which is exactly the number of SAXPY steps before a reduction is triggered.
-- **C** (logical `dM x dN`) is stored row-major as `dN x dM`, i.e. $C^T$. Each row of the stored layout (length `dM`) corresponds to one column of the logical $C$ block. This makes reduction writes contiguous: the FSUM PE writes a full column of $C$ (length `dM`) as a single linear DSD at offset `col * dM`, avoiding strided access.
+**Wafer-level.** $A$ and $C$ are block-distributed with rows along Y and columns along X, matching the PE grid. $B$ is transposed: its row axis ($H$) maps to X and its column axis ($N$) maps to Y, so the shared hidden dimension $H$ runs along X for both $A$ and $B$, aligning with the reduction axis.
 
-```
-  Per-PE memory (flat arrays, all row-major, all transposed):
-
-  A[dM*dH]:   | A^T row 0 (dM) | A^T row 1 (dM) | ... | A^T row dH-1 (dM) |
-               = A^T stored row-major  (each row = one column of logical A)
-
-  B[dH*dN_y]:  | B^T row 0 (dH) | B^T row 1 (dH) | ... | B^T row dN_y-1 (dH) |
-               = B^T stored row-major  (each row = one column of logical B)
-
-  C[dM*dN]:    | C^T row 0 (dM) | C^T row 1 (dM) | ... | C^T row dN-1 (dM) |
-               = C^T stored row-major  (each row = one column of logical C)
-```
-
-**Wafer-level distribution.** $A$ and $C$ are block-distributed with rows along Y and columns along X, matching the PE grid orientation. $B$ is transposed at the wafer level: its row axis ($H$) runs along X and its column axis ($N$) runs along Y, giving block index `B(x, y)` rather than `B(y, x)`. This places the shared hidden dimension $H$ along the same axis (X) for both $A$ and $B$, so the reduction of partial products naturally proceeds along X.
-
-```
-  Wafer PE grid (x = column, y = row):
-
-             x=0       x=1       ...
-        +----------+----------+------+
-  y=0   | A(0,0)   | A(0,1)   |      |    A: rows along Y, H-cols along X
-        | B(0,0)   | B(1,0)   |      |    B: H-rows along X, N-cols along Y  <-- transposed
-        | C(0,0)   | C(0,1)   |      |    C: rows along Y, N-cols along X
-        +----------+----------+------+
-  y=1   | A(1,0)   | A(1,1)   |      |
-        | B(0,1)   | B(1,1)   |      |
-        | C(1,0)   | C(1,1)   |      |
-        +----------+----------+------+
-```
+**Local memory.** Storing all matrices as their transpose row-major ensures that the critical access pattern -- reading/writing a column vector of length `dM` or `dH` -- is always a contiguous linear DSD rather than a strided one.
 
 ## Algorithm Overview
 
