@@ -147,7 +147,8 @@ runner.memcpy_d2h(C_result, C_symbol, 0, 0, kernel_x_dim, kernel_y_dim, dM*dN,
   nonblock=False)
 
 # Reshape C_result from PE layout back to (M, N)
-C_result = C_result.reshape(kernel_y_dim, kernel_x_dim, dM, dN)
+# C is stored as C^T (dN x dM) row-major on each PE, so transpose per-PE
+C_result = C_result.reshape(kernel_y_dim, kernel_x_dim, dN, dM).transpose(0, 1, 3, 2)
 C_expected_chunked = C_expected.reshape(kernel_y_dim, dM, kernel_x_dim, dN).transpose(0, 2, 1, 3)
 print(f"\n--- Local C values per PE (each PE has a {dM}x{dN} chunk) ---")
 for py in range(kernel_y_dim):

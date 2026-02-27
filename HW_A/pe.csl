@@ -75,8 +75,8 @@ const reduce_fab_in_dsd = @get_dsd(fabin_dsd, .{
   .input_queue = reduce_iq,
 });
 
-// DSD for writing to columns of C (column-major access)
-var C_col_dsd = @get_dsd(mem1d_dsd, .{ .tensor_access = |i|{dM} -> C[i * dN] });
+// DSD for writing to columns of C (C stored as C^T row-major, so columns are contiguous)
+var C_col_dsd = @get_dsd(mem1d_dsd, .{ .tensor_access = |i|{dM} -> C[i] });
 
 var ptr_A: [*]f32 = &A;
 var ptr_B: [*]f32 = &B;
@@ -187,7 +187,7 @@ fn reduce() void {
   } else if (reduce_state == FSUM) {
     prt.print_string(" state: FSUM\n");
     // Terminator: receive from fabric, add local red_in, write to C
-    var loc_C_dsd = @increment_dsd_offset(C_col_dsd, local_col, f32);
+    var loc_C_dsd = @increment_dsd_offset(C_col_dsd, local_col * dM, f32);
     @fadds(loc_C_dsd, red_in_dsd, reduce_fab_in_dsd, .{});
 
     simprint_pe_coords();

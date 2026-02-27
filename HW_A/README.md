@@ -37,6 +37,44 @@ Each PE at grid position $(x, y)$ stores:
 | B      | B(x, y)      | dH x dN_y      | rows [x*dH : (x+1)*dH], cols [y*dN_y : (y+1)*dN_y] |
 | C      | C(y, x)      | dM x dN         | rows [y*dM : (y+1)*dM], cols [x*dN : (x+1)*dN] |
 
+### Storage Layout and Transpositions
+
+**Per-PE memory layout.** All three matrices are transposed in memory relative to their logical shape. The host applies a transpose before copying to the device (and inverts it on readback), so each PE stores the transpose row-major:
+
+- **A** (logical `dM x dH`) is stored row-major as `dH x dM`, i.e. $A^T$. Each row of the stored layout (length `dM`) corresponds to a column of the logical $A$ block. A single linear DSD at offset `h * dM` reads the $h$-th column of $A$, enabling the wavelet-driven SAXPY: each incoming scalar $b_h$ is multiplied against a contiguous column of $A$.
+- **B** (logical `dH x dN_y`) is stored row-major as `dN_y x dH`, i.e. $B^T$. Each row of the stored layout (length `dH`) corresponds to one column of the logical $B$ block. When broadcast wavelet-by-wavelet, the receiver sees `dH` consecutive elements per $B$-column, which is exactly the number of SAXPY steps before a reduction is triggered.
+- **C** (logical `dM x dN`) is stored row-major as `dN x dM`, i.e. $C^T$. Each row of the stored layout (length `dM`) corresponds to one column of the logical $C$ block. This makes reduction writes contiguous: the FSUM PE writes a full column of $C$ (length `dM`) as a single linear DSD at offset `col * dM`, avoiding strided access.
+
+```
+  Per-PE memory (flat arrays, all row-major, all transposed):
+
+  A[dM*dH]:   | A^T row 0 (dM) | A^T row 1 (dM) | ... | A^T row dH-1 (dM) |
+               = A^T stored row-major  (each row = one column of logical A)
+
+  B[dH*dN_y]:  | B^T row 0 (dH) | B^T row 1 (dH) | ... | B^T row dN_y-1 (dH) |
+               = B^T stored row-major  (each row = one column of logical B)
+
+  C[dM*dN]:    | C^T row 0 (dM) | C^T row 1 (dM) | ... | C^T row dN-1 (dM) |
+               = C^T stored row-major  (each row = one column of logical C)
+```
+
+**Wafer-level distribution.** $A$ and $C$ are block-distributed with rows along Y and columns along X, matching the PE grid orientation. $B$ is transposed at the wafer level: its row axis ($H$) runs along X and its column axis ($N$) runs along Y, giving block index `B(x, y)` rather than `B(y, x)`. This places the shared hidden dimension $H$ along the same axis (X) for both $A$ and $B$, so the reduction of partial products naturally proceeds along X.
+
+```
+  Wafer PE grid (x = column, y = row):
+
+             x=0       x=1       ...
+        +----------+----------+------+
+  y=0   | A(0,0)   | A(0,1)   |      |    A: rows along Y, H-cols along X
+        | B(0,0)   | B(1,0)   |      |    B: H-rows along X, N-cols along Y  <-- transposed
+        | C(0,0)   | C(0,1)   |      |    C: rows along Y, N-cols along X
+        +----------+----------+------+
+  y=1   | A(1,0)   | A(1,1)   |      |
+        | B(0,1)   | B(1,1)   |      |
+        | C(1,0)   | C(1,1)   |      |
+        +----------+----------+------+
+```
+
 ## Algorithm Overview
 
 The algorithm proceeds in $N$ outer steps, one per global column of $C$. Each step computes one column of $C$ via a **column broadcast** of $B$ followed by a **row reduction** of partial sums.
@@ -80,9 +118,11 @@ Each wavelet carries one `f32` element. Over the full broadcast of one B-column,
 
 Upon receiving each broadcast wavelet $b_h$ (a scalar from $B$), the PE executes:
 
-$$\texttt{red\_in}[0\!:\!dM] \mathrel{+}= A[\,:\,,\, h] \cdot b_h$$
+$$r[0:dM] \mathrel{+}= A[:,h] \cdot b_h$$
 
-using the hardware `fmac` (fused multiply-accumulate) operation. After $dH$ wavelets (one full column of $B$'s local block), the accumulation buffer `red_in` holds the local partial product $A_{\text{local}} \cdot b_{\text{col}}$, a vector of length $dM$.
+where $r$ is the local accumulation buffer `red_in`.
+
+using the hardware `fmac` (fused multiply-accumulate) operation. After $dH$ wavelets (one full column of $B$'s local block), the accumulation buffer holds the local partial product $A \cdot b$, a vector of length $dM$.
 
 ### Phase 3 -- Row Reduction (Ring)
 
@@ -141,15 +181,15 @@ Routing uses three fabric colors (A, B, C) to avoid conflicts on shared wires be
   verify C == A * B
 ```
 
-Total reductions per PE: $\texttt{kernel\_y\_dim} \times dN_y = N$, one per global column of $C$.
+Total reductions per PE: `kernel_y_dim` $\times$ `dN_y` $= N$, one per global column of $C$.
 
 ## Constraints
 
 - `kernel_x_dim >= 2`, `kernel_y_dim >= 2`
-- $M \bmod \texttt{kernel\_y\_dim} = 0$
-- $H \bmod \texttt{kernel\_x\_dim} = 0$
-- $N \bmod \texttt{kernel\_x\_dim} = 0$
-- $N \bmod \texttt{kernel\_y\_dim} = 0$
+- $M$ mod `kernel_y_dim` $= 0$
+- $H$ mod `kernel_x_dim` $= 0$
+- $N$ mod `kernel_x_dim` $= 0$
+- $N$ mod `kernel_y_dim` $= 0$
 
 ## File Structure
 
