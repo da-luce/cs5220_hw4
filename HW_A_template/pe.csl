@@ -1,0 +1,161 @@
+// Parameters from layout
+param memcpy_params: comptime_struct;
+param dM: i16;
+param dN: i16;
+param dN_y: i16;
+param dH: i16;
+param kernel_x_dim: i16;
+param kernel_y_dim: i16;
+param broadcast_tx_color: color;
+param broadcast_rx_color: color;
+param reduce_tx_color: color;
+param reduce_rx_color: color;
+
+const sys_mod = @import_module("<memcpy/memcpy>", memcpy_params);
+const ctrl = @import_module("<control>");
+const layout_mod = @import_module("<layout>");
+const tile_config = @import_module("<tile_config>");
+const prt = @import_module("<simprint>");
+const ops = @import_module("<dsd_ops>");
+const timestamp = @import_module("<time>");
+
+// TSC timer buffers (provided for performance measurement, do NOT modify)
+var tscStartBuffer = @zeros([timestamp.tsc_size_words]u16);
+var tscEndBuffer = @zeros([timestamp.tsc_size_words]u16);
+var time_buf_u16 = @zeros([timestamp.tsc_size_words * 2]u16);
+var ptr_time_buf_u16: [*]u16 = &time_buf_u16;
+
+fn start_timer() void {
+  timestamp.enable_tsc();
+  timestamp.get_timestamp(&tscStartBuffer);
+  time_buf_u16[0] = tscStartBuffer[0];
+  time_buf_u16[1] = tscStartBuffer[1];
+  time_buf_u16[2] = tscStartBuffer[2];
+}
+
+fn end_timer() void {
+  timestamp.get_timestamp(&tscEndBuffer);
+  time_buf_u16[3] = tscEndBuffer[0];
+  time_buf_u16[4] = tscEndBuffer[1];
+  time_buf_u16[5] = tscEndBuffer[2];
+}
+
+// =============================================================================
+// Debugging helpers (provided)
+// =============================================================================
+
+// Print the PE's logical (x,y) and absolute fabric coordinates to the sim.log file.
+// Call at the start of any debug print to identify which PE is talking.
+// Usage examples (uncomment inside a task or function to test):
+//
+//   simprint_pe_coords();
+//   prt.print_string("hello from this PE\n");
+//
+//   simprint_pe_coords();
+//   prt.fmt_no_nl("current_row={d}\n", .{@as(u16, current_row)});
+//
+//   simprint_pe_coords();
+//   prt.fmt_no_nl("reduce_count={d}, C[0]={f}\n", .{reduce_count, C[0]});
+// 
+fn simprint_pe_coords() void {
+  const abs_x: u16 = tile_config.get_fabric_coord(tile_config.fabric_coord.X);
+  const abs_y: u16 = tile_config.get_fabric_coord(tile_config.fabric_coord.Y);
+  prt.fmt_no_nl("Loc({d}, {d}) P{d}.{d}: ", .{
+    layout_mod.get_x_coord(), layout_mod.get_y_coord(), abs_x, abs_y,
+  });
+}
+
+
+// =============================================================================
+// Queue declarations (provided)
+// =============================================================================
+const broadcast_oq: output_queue = @get_output_queue(2);
+const reduce_oq: output_queue = @get_output_queue(3);
+const reduce_iq: input_queue = @get_input_queue(2);
+
+// =============================================================================
+// Storage (provided)
+// =============================================================================
+var A: [dM * dH]f32 = @zeros([dM * dH]f32);
+var B: [dH * dN_y]f32 = @zeros([dH * dN_y]f32);
+var C: [dM * dN]f32 = @zeros([dM * dN]f32);
+
+var ptr_A: [*]f32 = &A;
+var ptr_B: [*]f32 = &B;
+var ptr_C: [*]f32 = &C;
+
+
+// =============================================================================
+// TODO: Implement the distributed matrix multiplication.
+//
+// You have a 2D PE grid (kernel_x_dim x kernel_y_dim).
+// Each PE holds local blocks of A, B, and must compute its portion of C.
+//
+// High-level algorithm:
+//   1) Each column of B (within a PE's local B block) is broadcast down
+//      the Y-dimension of the PE grid using fabric colors.
+//   2) As broadcast wavelets arrive one-by-one, each PE performs a SAXPY
+//      (fused multiply-accumulate) to accumulate a partial column of C.
+//   3) After all dH wavelets for one B-column arrive, the partial result
+//      is reduced across the X-dimension via a ring to produce the final
+//      column of C.
+//
+// You need to implement:
+//   - DSDs for fabric I/O (broadcast send/receive, reduce send/receive)
+//   - DSDs for memory access (reading A columns, B data, writing C columns)
+//   - A data task that fires on each incoming broadcast wavelet
+//   - A broadcast send function that sends local B data to the column
+//   - A ring reduction that accumulates partial sums across X-PEs
+//   - Switch advance logic so each PE in the column takes turns broadcasting
+//   - Completion detection (unblock_cmd_stream when all reductions are done)
+//   - TSC end timestamp: when done, call timestamp.get_timestamp(&tscEndBuffer)
+//     and copy into time_buf_u16[3..5] before unblocking
+//
+// Useful builtins/modules:
+//   @get_dsd(fabout_dsd, ...), @get_dsd(fabin_dsd, ...), @get_dsd(mem1d_dsd, ...)
+//   @mov32, @fmovs, @fadds
+//   ops.fmac(f32, f32, dst, src1, src2, scalar, .{})
+//   ctrl.encode_single_payload(ctrl.opcode.SWITCH_ADV, true, {}, 0)
+//   @increment_dsd_offset(dsd, offset, f32)
+//   layout_mod.get_x_coord(), layout_mod.get_y_coord()
+//   sys_mod.unblock_cmd_stream()
+// =============================================================================
+
+
+var current_row: i16 = 0; // This can be removed if you find a better way.
+task recv_broadcast_task(in_data: f32) void {
+  // TODO: Implement the task that receives broadcast wavelets, performs SAXPY, and triggers reduction when a column is done.
+}
+
+// =============================================================================
+// Entry point: called by the host via runner.launch('broadcast_pe')
+// =============================================================================
+fn broadcast_pe() void {
+  // TSC timer start (provided, do NOT mremove or modify this code)
+  // SAFE SECTION BEGIN
+  start_timer();
+  // SAFE SECTION END
+
+  // TODO: Initialize state and begin broadcasting B data
+}
+
+// SAFE SECTION BEGIN
+fn terminate_kernel() void {
+  // TSC timer end (provided, do NOT mremove or modify this code)
+  end_timer();
+  // Unblock the command stream to signal completion to the host
+  sys_mod.unblock_cmd_stream();
+}
+// SAFE SECTION END
+
+comptime {
+  @comptime_assert(@is_arch("wse2"));
+
+  // TODO: Set up input queues, bind data/local tasks, initialize queues
+
+  @export_symbol(ptr_A, "A");
+  @export_symbol(ptr_B, "B");
+  @export_symbol(ptr_C, "C");
+  @export_symbol(ptr_time_buf_u16, "time_buf_u16");
+  @export_symbol(broadcast_pe);
+}

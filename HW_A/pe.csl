@@ -18,6 +18,7 @@ const layout_mod = @import_module("<layout>");
 const tile_config = @import_module("<tile_config>");
 const prt = @import_module("<simprint>");
 const ops = @import_module("<dsd_ops>");
+const timestamp = @import_module("<time>");
 
 // Output queue for broadcast_rx_color
 const broadcast_oq: output_queue = @get_output_queue(2);
@@ -81,6 +82,13 @@ var C_col_dsd = @get_dsd(mem1d_dsd, .{ .tensor_access = |i|{dM} -> C[i] });
 var ptr_A: [*]f32 = &A;
 var ptr_B: [*]f32 = &B;
 var ptr_C: [*]f32 = &C;
+
+// TSC timer buffers (each is 3 x u16 = 48 bits)
+var tscStartBuffer = @zeros([timestamp.tsc_size_words]u16);
+var tscEndBuffer = @zeros([timestamp.tsc_size_words]u16);
+// Combined buffer for D2H: {start[0..2], end[0..2]}
+var time_buf_u16 = @zeros([timestamp.tsc_size_words * 2]u16);
+var ptr_time_buf_u16: [*]u16 = &time_buf_u16;
 
 // Counter to track total reduce() calls for completion synchronization
 var reduce_count: u32 = 0;
@@ -214,12 +222,21 @@ fn reduce() void {
   // Check if all broadcast columns have been processed
   // Total reduce calls expected = kernel_y_dim * dN_y (one per global B-column)
   if (reduce_count == @as(u32, kernel_y_dim) * @as(u32, dN_y)) {
+    timestamp.get_timestamp(&tscEndBuffer);
+    time_buf_u16[3] = tscEndBuffer[0];
+    time_buf_u16[4] = tscEndBuffer[1];
+    time_buf_u16[5] = tscEndBuffer[2];
     sys_mod.unblock_cmd_stream();
   }
 }
 
 // Broadcast a column of B using async UT, activates send_done_task on completion
 fn broadcast_pe() void {
+  timestamp.enable_tsc();
+  timestamp.get_timestamp(&tscStartBuffer);
+  time_buf_u16[0] = tscStartBuffer[0];
+  time_buf_u16[1] = tscStartBuffer[1];
+  time_buf_u16[2] = tscStartBuffer[2];
   initialize_reduce();
   simprint_pe_coords();
   prt.print_string("broadcast_pe: starting send\n");
@@ -247,5 +264,6 @@ comptime {
   @export_symbol(ptr_A, "A");
   @export_symbol(ptr_B, "B");
   @export_symbol(ptr_C, "C");
+  @export_symbol(ptr_time_buf_u16, "time_buf_u16");
   @export_symbol(broadcast_pe);
 }

@@ -214,6 +214,7 @@ layout {
   @export_name("A", [*]f32, true);
   @export_name("B", [*]f32, true);
   @export_name("C", [*]f32, true);
+  @export_name("time_buf_u16", [*]u16, true);
   @export_name("broadcast_pe", fn () void);
   @export_name("compute", fn () void);
 }
