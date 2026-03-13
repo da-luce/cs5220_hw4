@@ -127,14 +127,20 @@ layout {
       // From slide 74 (https://static.us.edusercontent.com/files/twYEkF4QZhPddD5tZqDV542b):
       // the row reduction has an alternating "checkboard" pattern
       // Good example here: https://sdk.cerebras.net/csl/code-examples/benchmark-gemv-checkerboard
+      // ^ This example does not use the flyover color since it's GEMV and has a single, western-most origin PE
 
       // Swap the reduction colors for alternating PEs along X to create the "checkboard" pattern
       reduce_tx_color = (pe_x % 2 == 0) ? reduce_A_color : reduce_B_color;
       reduce_rx_color = (pe_x % 2 == 0) ? reduce_B_color : reduce_A_color;
 
-      // We use reduce_C_color as the flyover color for all PEs since it's only used for passthrough
-      // pe.csl doesn't need to know the flyover color since the flyover is done entirely in the router,
-      // outside the CE!
+      // Special case for flyover:
+      if (pe_x == 0) {
+        // Western most column, we receive on ramp!
+        reduce_rx_color = reduce_C_color;
+      } else if (pe_x == kernel_x_dim - 1) {
+        // Eastern most column, we send on ramp!
+        reduce_tx_color = reduce_C_color;
+      }
 
       @set_tile_code(pe_x, pe_y, "pe.csl", @concat_structs(
         common_params,
@@ -145,6 +151,59 @@ layout {
       ));
     }
   }
+
+  // Create route values
+
+  // Partial sums flow from the last X-PE toward the first - east to west
+  const RX_R_TX_W = .{ .rx = .{ RAMP }, .tx = .{ WEST }}; // Data coming from the RAMP and going west to the next PE
+  const RX_E_TX_R = .{ .rx = .{ EAST }, .tx = .{ RAMP }}; // Data coming from the east PE and going to our RAMP
+
+  // Flyover routes
+  const RX_W_TX_E = .{ .rx = .{ WEST }, .tx = .{ EAST }}; // Middle columns
+  const RX_R_TX_W = .{ .rx = .{ RAMP }, .tx = .{ WEST }}; // Eastern most column
+  const RX_E_TX_R = .{ .rx = .{ EAST }, .tx = .{ RAMP }}; // Western most column
+
+  // Setup router information for each PE
+  for (@range(i16, kernel_x_dim)) |pe_x| {
+    for (@range(i16, kernel_y_dim)) |pe_y| {
+
+      // FIXME: one column receives from host2device??
+
+      // reduce_A_color
+      // On even columns, reduce_A_color is the "tx" color, receiving values up ramp and sending to west.
+      // On odd columns, reduce_A_color is the "rx" color, receiving values from east and sending down ramp for reduction.
+      if (pe_x % 2 == 0) {
+        @set_color_config(pe_x, pe_y, reduce_A_color, .{ .routes = RX_R_TX_W });
+      } else {
+        @set_color_config(pe_x, pe_y, reduce_A_color, .{ .routes = RX_E_TX_R });
+      }
+
+      // reduce_B_color
+      // reduce_B_color is the opposite of reduce_A_color to create the "checkboard" pattern
+      if (pe_x % 2 == 0) {
+        @set_color_config(pe_x, pe_y, reduce_B_color, .{ .routes = RX_E_TX_R });
+      } else {
+        @set_color_config(pe_x, pe_y, reduce_B_color, .{ .routes = RX_R_TX_W });
+      }
+
+      // reduce_C_color
+      if (pe_x == 0) {
+        // For the western-most column, the flyover color is received from east and sent down ramp for reduction
+        @set_color_config(pe_x, pe_y, reduce_C_color, .{ .routes = RX_E_TX_R });
+      } else if (pe_x == kernel_x_dim - 1) {
+        // For the eastern-most column, the flyover color is sent from ramp to west
+        @set_color_config(pe_x, pe_y, reduce_C_color, .{ .routes = RX_R_TX_W });
+      } else {
+        // For the middle columns, the flyover color should just route west to east
+        @set_color_config(pe_x, pe_y, reduce_C_color, .{ .routes = RX_W_TX_E });
+      }
+
+      // TODO: broadcast routing.
+    }
+  }
+
+
+
 
   // Export symbol names
   @export_name("A", [*]f32, true);
