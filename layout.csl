@@ -49,8 +49,12 @@ const memcpy = @import_module("<memcpy/get_params>", .{
   .MEMCPYD2H_1 = MEMCPYD2H_DATA_1
 });
 
+
+// The layout block defines the processing element (PE) layout and routing
+// configuration for the accelerator.
 layout {
   // PE coordinates are (column, row)
+  // Thus, we have kernel_x_dim PEs in the X direction and kernel_y_dim PEs in the Y direction
   @set_rectangle(kernel_x_dim, kernel_y_dim);
 
   // PE rectangle dimensions should evenly divide matrix dimensions
@@ -113,6 +117,34 @@ layout {
   //
 
   // TODO: Your routing implementation here
+
+  // Set tile code for each PE
+  for (@range(i16, kernel_x_dim)) |pe_x| {
+    for (@range(i16, kernel_y_dim)) |pe_y| {
+      // Sets the kernel and parameters for the PE at (pe_x, pe_y)
+
+      // As stated in the assignment: "Each PE needs its own reduce_tx_color and reduce_rx_color — use the three provided reduction colors"
+      // From slide 74 (https://static.us.edusercontent.com/files/twYEkF4QZhPddD5tZqDV542b):
+      // the row reduction has an alternating "checkboard" pattern
+      // Good example here: https://sdk.cerebras.net/csl/code-examples/benchmark-gemv-checkerboard
+
+      // Swap the reduction colors for alternating PEs along X to create the "checkboard" pattern
+      reduce_tx_color = (pe_x % 2 == 0) ? reduce_A_color : reduce_B_color;
+      reduce_rx_color = (pe_x % 2 == 0) ? reduce_B_color : reduce_A_color;
+
+      // We use reduce_C_color as the flyover color for all PEs since it's only used for passthrough
+      // pe.csl doesn't need to know the flyover color since the flyover is done entirely in the router,
+      // outside the CE!
+
+      @set_tile_code(pe_x, pe_y, "pe.csl", @concat_structs(
+        common_params,
+        .{.memcpy_params = memcpy.get_params(pe_x),
+          .reduce_tx_color = reduce_tx_color,
+          .reduce_rx_color = reduce_rx_color,
+        },
+      ));
+    }
+  }
 
   // Export symbol names
   @export_name("A", [*]f32, true);
