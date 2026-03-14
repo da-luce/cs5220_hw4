@@ -123,15 +123,20 @@ layout {
     for (@range(i16, kernel_y_dim)) |pe_y| {
       // Sets the kernel and parameters for the PE at (pe_x, pe_y)
 
-      // As stated in the assignment: "Each PE needs its own reduce_tx_color and reduce_rx_color — use the three provided reduction colors"
+      // As stated in the assignment: "Each PE needs its own reduce_tx_color and
+      // reduce_rx_color — use the three provided reduction colors"
       // From slide 74 (https://static.us.edusercontent.com/files/twYEkF4QZhPddD5tZqDV542b):
       // the row reduction has an alternating "checkboard" pattern
       // Good example here: https://sdk.cerebras.net/csl/code-examples/benchmark-gemv-checkerboard
-      // ^ This example does not use the flyover color since it's GEMV and has a single, western-most origin PE
+      // ^ This example does not use the flyover color since it's GEMV and has a
+      //   single, western-most origin PE
 
       // Swap the reduction colors for alternating PEs along X to create the "checkboard" pattern
       reduce_tx_color = (pe_x % 2 == 0) ? reduce_A_color : reduce_B_color;
       reduce_rx_color = (pe_x % 2 == 0) ? reduce_B_color : reduce_A_color;
+
+      // Broadcast color checkering is done at the router level (color swapping)
+      // so no need to set different colors for each PE
 
       // Special cases for flyover
       if (pe_x == 0) {
@@ -162,6 +167,33 @@ layout {
   const RX_E_TX_W = .{ .rx = .{ WEST }, .tx = .{ EAST }}; // Middle columns - send in reverse (east to west)
   const RX_R_TX_W = .{ .rx = .{ RAMP }, .tx = .{ WEST }}; // Eastern most column
   const RX_E_TX_R = .{ .rx = .{ EAST }, .tx = .{ RAMP }}; // Western most column
+
+  // Downwards broadcast routes
+  const RX_N_TX_RS = .{ .rx = .{ NORTH }, .tx = .{ RAMP, SOUTH }}; // Broadcasts go north to south, and trigger computation
+  const RX_N_TX_RS_SWAP = .{ .rx = .{ NORTH }, .tx = .{ RAMP, SOUTH }, .color_swap_y = true }; // Same as above but with color swap on Y to flip rx to tx at the top row
+  const RX_N_TX_R = .{ .rx = .{ NORTH }, .tx = .{ RAMP }}; // For the last row, no need to transmit
+
+ 
+  // Upwards broadcast routes
+  // The upwards broadcast route is used for sending data to the top to be 
+  // distributed (think like an elevator, before being distributed to all lower floors)
+  // Each PE in the column has to send it's data upwards, but only one at a time.
+  // So, the the upwards route has two configurations:
+  // 1. Passthrough - the PE forwards wavelets from SOUTH to NORTH without modification
+  // 2. Send - the PE sends its own data from RAMP to NORTH
+  const RX_S_TX_N = .{ .rx = .{ SOUTH }, .tx = .{ NORTH }}; // 1. Passthrough
+  const RX_R_TX_N = .{ .rx = .{ RAMP }, .tx = .{ NORTH }}; // 2. Send
+
+  // Compose both of these routes into an alternating switch
+  const up_switches = .{
+    // Pos 0 is the default route           // Passthrough
+    .pos1 = RX_R_TX_N,                      // Send
+    .pos2 = RX_S_TX_N,                      // Passthrough
+    .pos3 = RX_S_TX_N,                      // Send
+    .current_switch_pos = 0,
+    .ring_mode = true,                      // Wrap around to pos0
+    .pop_mode = .{ pop_on_advance = true }, // Do not forward the SWITCH_ADV signal... or do we want to?
+  };
 
   // Setup router information for each PE
   for (@range(i16, kernel_x_dim)) |pe_x| {
@@ -198,12 +230,28 @@ layout {
         @set_color_config(pe_x, pe_y, reduce_C_color, .{ .routes = RX_E_TX_W });
       }
 
+      // broadcast_tx_color
+      if (pe_y == kernel_y_dim - 1) {
+        // For the bottom row, no need to transmit downwards since there is no one below to receive
+        @set_color_config(pe_x, pe_y, broadcast_tx_color, .{ .routes = RX_N_TX_R });
+      } else {
+        // Broadcasts go north to south, and trigger computation
+        @set_color_config(pe_x, pe_y, broadcast_tx_color, .{ .routes = RX_N_TX_RS });
+      }
+
+      // broadcast_rx_color
+      if (pe_y == 0) {
+        // For the top row, we need to swap the color on Y to flip the broadcast from rx to tx
+        // FIXME: top row doesn't need a switch config?
+        @set_color_config(pe_x, pe_y, broadcast_rx_color, .{ .routes = RX_N_TX_RS_SWAP });
+        // The color swap will have the wavelet sent back downwards
+      } else {
+        @set_color_config(pe_x, pe_y, broadcast_rx_color, .{ .routes = RX_S_TX_N , .switches = up_switches });
+      }
+
       // TODO: broadcast routing.
     }
   }
-
-
-
 
   // Export symbol names
   @export_name("A", [*]f32, true);
