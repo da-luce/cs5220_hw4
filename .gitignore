@@ -1,0 +1,5 @@
+out/
+sim.log
+simconfig.json
+config.pyc
+*tmpdir*
