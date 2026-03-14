@@ -132,8 +132,8 @@ layout {
       //   single, western-most origin PE
 
       // Swap the reduction colors for alternating PEs along X to create the "checkboard" pattern
-      reduce_tx_color = (pe_x % 2 == 0) ? reduce_A_color : reduce_B_color;
-      reduce_rx_color = (pe_x % 2 == 0) ? reduce_B_color : reduce_A_color;
+      var reduce_tx_color = if (pe_x % 2 == 0) reduce_A_color else reduce_B_color;
+      var reduce_rx_color = if (pe_x % 2 == 0) reduce_B_color else reduce_A_color;
 
       // Broadcast color checkering is done at the router level (color swapping)
       // so no need to set different colors for each PE
@@ -187,12 +187,12 @@ layout {
   // Compose both of these routes into an alternating switch
   const up_switches = .{
     // Pos 0 is the default route           // Passthrough
-    .pos1 = RX_R_TX_N,                      // Send
-    .pos2 = RX_S_TX_N,                      // Passthrough
-    .pos3 = RX_S_TX_N,                      // Send
+    .pos1 = .{ .rx = RAMP },           // Send
+    .pos2 = .{ .rx = SOUTH },          // Passthrough
+    .pos3 = .{ .rx = RAMP },           // Send
     .current_switch_pos = 0,
     .ring_mode = true,                      // Wrap around to pos0
-    .pop_mode = .{ pop_on_advance = true }, // Do not forward the SWITCH_ADV signal... or do we want to?
+    .pop_mode = .{ .pop_on_advance = true }, // Do not forward the SWITCH_ADV signal... or do we want to?
   };
 
   // Setup router information for each PE
