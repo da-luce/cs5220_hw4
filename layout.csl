@@ -133,12 +133,12 @@ layout {
       reduce_tx_color = (pe_x % 2 == 0) ? reduce_A_color : reduce_B_color;
       reduce_rx_color = (pe_x % 2 == 0) ? reduce_B_color : reduce_A_color;
 
-      // Special case for flyover:
+      // Special cases for flyover
       if (pe_x == 0) {
-        // Western most column, we receive on ramp!
+        // Western most column, we receive from flyover
         reduce_rx_color = reduce_C_color;
       } else if (pe_x == kernel_x_dim - 1) {
-        // Eastern most column, we send on ramp!
+        // Eastern most column, we send on flyover
         reduce_tx_color = reduce_C_color;
       }
 
@@ -154,12 +154,12 @@ layout {
 
   // Create route values
 
-  // Partial sums flow from the last X-PE toward the first - east to west
-  const RX_R_TX_W = .{ .rx = .{ RAMP }, .tx = .{ WEST }}; // Data coming from the RAMP and going west to the next PE
-  const RX_E_TX_R = .{ .rx = .{ EAST }, .tx = .{ RAMP }}; // Data coming from the east PE and going to our RAMP
+  // Partial sums flow east to west
+  const RX_W_TX_R = .{ .rx = .{ WEST }, .tx = .{ RAMP }}; // Data coming from the west PE and going to our RAMP
+  const RX_R_TX_E = .{ .rx = .{ RAMP }, .tx = .{ EAST }}; // Data coming from the RAMP and going east to the next PE
 
   // Flyover routes
-  const RX_W_TX_E = .{ .rx = .{ WEST }, .tx = .{ EAST }}; // Middle columns
+  const RX_E_TX_W = .{ .rx = .{ WEST }, .tx = .{ EAST }}; // Middle columns - send in reverse (east to west)
   const RX_R_TX_W = .{ .rx = .{ RAMP }, .tx = .{ WEST }}; // Eastern most column
   const RX_E_TX_R = .{ .rx = .{ EAST }, .tx = .{ RAMP }}; // Western most column
 
@@ -170,20 +170,20 @@ layout {
       // FIXME: one column receives from host2device??
 
       // reduce_A_color
-      // On even columns, reduce_A_color is the "tx" color, receiving values up ramp and sending to west.
-      // On odd columns, reduce_A_color is the "rx" color, receiving values from east and sending down ramp for reduction.
+      // On even columns, reduce_A_color is the "tx" color, receiving values up ramp and sending to east
+      // On odd columns, reduce_A_color is the "rx" color, receiving values from west and sending down ramp for reduction
       if (pe_x % 2 == 0) {
-        @set_color_config(pe_x, pe_y, reduce_A_color, .{ .routes = RX_R_TX_W });
+        @set_color_config(pe_x, pe_y, reduce_A_color, .{ .routes = RX_R_TX_E });
       } else {
-        @set_color_config(pe_x, pe_y, reduce_A_color, .{ .routes = RX_E_TX_R });
+        @set_color_config(pe_x, pe_y, reduce_A_color, .{ .routes = RX_W_TX_R });
       }
 
       // reduce_B_color
       // reduce_B_color is the opposite of reduce_A_color to create the "checkboard" pattern
       if (pe_x % 2 == 0) {
-        @set_color_config(pe_x, pe_y, reduce_B_color, .{ .routes = RX_E_TX_R });
+        @set_color_config(pe_x, pe_y, reduce_B_color, .{ .routes = RX_W_TX_R });
       } else {
-        @set_color_config(pe_x, pe_y, reduce_B_color, .{ .routes = RX_R_TX_W });
+        @set_color_config(pe_x, pe_y, reduce_B_color, .{ .routes = RX_R_TX_E });
       }
 
       // reduce_C_color
@@ -194,8 +194,8 @@ layout {
         // For the eastern-most column, the flyover color is sent from ramp to west
         @set_color_config(pe_x, pe_y, reduce_C_color, .{ .routes = RX_R_TX_W });
       } else {
-        // For the middle columns, the flyover color should just route west to east
-        @set_color_config(pe_x, pe_y, reduce_C_color, .{ .routes = RX_W_TX_E });
+        // For the middle columns, the flyover color should just route east to west
+        @set_color_config(pe_x, pe_y, reduce_C_color, .{ .routes = RX_E_TX_W });
       }
 
       // TODO: broadcast routing.
