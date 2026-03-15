@@ -173,7 +173,8 @@ layout {
   const RX_N_TX_RS_SWAP = .{ .rx = .{ NORTH }, .tx = .{ RAMP, SOUTH }, .color_swap_y = true }; // Same as above but with color swap on Y to flip rx to tx at the top row
   const RX_N_TX_R = .{ .rx = .{ NORTH }, .tx = .{ RAMP }}; // For the last row, no need to transmit
 
- 
+  const RX_R_TX_RS = .{ .rx = .{ RAMP }, .tx = .{ RAMP, SOUTH } };
+
   // Upwards broadcast routes
   // The upwards broadcast route is used for sending data to the top to be 
   // distributed (think like an elevator, before being distributed to all lower floors)
@@ -231,7 +232,11 @@ layout {
       }
 
       // broadcast_tx_color
-      if (pe_y == kernel_y_dim - 1) {
+      if (pe_y == 0) {
+        // Receives from itself (RAMP) and sends to itself + SOUTH--this is
+        // used during the first initial broadcast
+        @set_color_config(pe_x, pe_y, broadcast_tx_color, .{ .routes = RX_R_TX_RS });
+      } else if (pe_y == kernel_y_dim - 1) {
         // For the bottom row, no need to transmit downwards since there is no one below to receive
         @set_color_config(pe_x, pe_y, broadcast_tx_color, .{ .routes = RX_N_TX_R });
       } else {
@@ -242,14 +247,12 @@ layout {
       // broadcast_rx_color
       if (pe_y == 0) {
         // For the top row, we need to swap the color on Y to flip the broadcast from rx to tx
-        // FIXME: top row doesn't need a switch config?
-        @set_color_config(pe_x, pe_y, broadcast_rx_color, .{ .routes = RX_N_TX_RS_SWAP });
+        // FIXME: color swapped before any routing?
+        @set_color_config(pe_x, pe_y, broadcast_rx_color, .{ .routes = .{ .rx = .{ SOUTH }, .tx = .{ RAMP, SOUTH }, .color_swap_y = true } });
         // The color swap will have the wavelet sent back downwards
       } else {
         @set_color_config(pe_x, pe_y, broadcast_rx_color, .{ .routes = RX_S_TX_N , .switches = up_switches });
       }
-
-      // TODO: broadcast routing.
     }
   }
 

@@ -124,6 +124,129 @@ var ptr_C: [*]f32 = &C;
 var current_row: i16 = 0; // This can be removed if you find a better way.
 task recv_broadcast_task(in_data: f32) void {
   // TODO: Implement the task that receives broadcast wavelets, performs SAXPY, and triggers reduction when a column is done.
+
+  // Print what we received for debugging
+  simprint_pe_coords();
+  prt.fmt_no_nl("Received data: {f}\n", .{in_data});
+}
+
+// Note to self:
+// Fast DSD: A[i]
+// Slow DSD: A[i * 10] - strided
+
+// -----------------------------------------------------------------------------
+// Memory access DSDs
+// -----------------------------------------------------------------------------
+
+// Reads a contiguous column of A (length dM)
+var mem_A_col_dsd = @get_dsd(mem1d_dsd, .{
+  .tensor_access = |i|{dM} -> A[i]
+  // mem1d_dsd - Asking for a 1D, contiguous block of memory
+  // i         - The iterator
+  // dM        - How much to iterate i over (i.e. one full column of A)
+  // A[i]      - The access pattern for each element (i.e. the i-th element of the column of A)
+});
+
+// Reads/Writes a contiguous column of C (length dM)
+var mem_C_col_dsd = @get_dsd(mem1d_dsd, .{
+  .tensor_access = |i|{dM} -> C[i]
+});
+
+// Reads a contiguous column of B (length dH).
+// Fast because B is row-major, but globally transposed, so the 
+// original columns of B are contiguous chunks of length dH.
+var mem_B_col_dsd = @get_dsd(mem1d_dsd, .{
+  .tensor_access = |i|{dH} -> B[i]
+});
+
+// -----------------------------------------------------------------------------
+// Fabric DSDs
+// -----------------------------------------------------------------------------
+
+// FIXME: not really sure about this one...
+
+// Broadcast send: Pushes a column of B (length dH) UP the elevator.
+const fab_bcast_out_dsd = @get_dsd(fabout_dsd, .{
+  .extent = dH,
+  .fabric_color = broadcast_rx_color,
+  .output_queue = broadcast_oq
+});
+
+// Reduce send: pushes a partial sum column of C (length dM) out to the ring.
+const fab_reduce_out_dsd = @get_dsd(fabout_dsd, .{
+  .extent = dM,
+  .fabric_color = reduce_tx_color,
+  .output_queue = reduce_oq
+});
+
+// Reduce receive: Pulls a partial sum column of C (length dM) in from the ring.
+const fab_reduce_in_dsd = @get_dsd(fabin_dsd, .{
+  .extent = dM,
+  .fabric_color = reduce_rx_color,
+  .input_queue = reduce_iq
+});
+
+// Control dsd
+const fab_bcast_ctrl_dsd = @get_dsd(fabout_dsd, .{
+  .extent = 1,
+  .fabric_color = broadcast_rx_color,
+  .output_queue = broadcast_oq,
+  .control = true,
+});
+
+// -----------------------------------------------------------------------------
+
+fn debug_print_b_column(local_col_idx: i16) void {
+  const start_idx = local_col_idx * dH;
+  
+  simprint_pe_coords();
+  prt.fmt_no_nl("Printing B-Matrix Column {d}:\n", .{@as(u16, local_col_idx)});
+
+  var i: i16 = 0;
+  while (i < dH) : (i += 1) {
+    // Both start_idx and i are i16, so the result is i16. 
+    // No need for u32 here.
+    const val = B[@as(u16, start_idx + i)]; 
+    
+    simprint_pe_coords();
+    prt.fmt_no_nl("  B[{d}] = {f}\n", .{@as(u16, i), val});
+  }
+}
+
+// -----------------------------------------------------------------------------
+// 1. Create single-element DSDs
+var fab_bcast_single_dsd = @get_dsd(fabout_dsd, .{
+  .extent = 1,
+  .fabric_color = broadcast_rx_color,
+  .output_queue = broadcast_oq
+});
+
+var mem_B_single_dsd = @get_dsd(mem1d_dsd, .{
+  .tensor_access = |i|{1} -> B[i] // Notice extent is 1
+});
+
+// 2. State for our non-blocking task
+var send_idx: i16 = 0;
+const SEND_TASK_ID = 8;
+
+// 3. The asynchronous send task
+task send_b_element() void {
+  if (send_idx < dH) {
+    // Send 1 element
+    @fmovs(fab_bcast_single_dsd, mem_B_single_dsd);
+    
+    // Bump the memory pointer by 1 float
+    @increment_dsd_offset(mem_B_single_dsd, 1, f32);
+    
+    send_idx += 1;
+    
+    // Schedule this task to run again (yields the CE so it can receive data!)
+    @activate(@get_local_task_id(SEND_TASK_ID));
+  } else {
+    // We finished our column. Tell the switch it is the next PE's turn.
+    const adv_cmd = ctrl.encode_single_payload(ctrl.opcode.SWITCH_ADV, true, {}, 0);
+    @mov32(fab_bcast_ctrl_dsd, adv_cmd);
+  }
 }
 
 // =============================================================================
@@ -135,7 +258,27 @@ fn broadcast_pe() void {
   start_timer();
   // SAFE SECTION END
 
-  // TODO: Initialize state and begin broadcasting B data
+  // debug_print_b_column(0);
+
+  // The top PE (y = 0) starts the sequence by sending its first column.
+  // PEs below (y > 0) do nothing here; they wait for wavelets to arrive.
+  if (layout_mod.get_y_coord() == 0) {
+    simprint_pe_coords();
+    prt.print_string("Starting broadcast of B column 0\n");
+
+    // Test: send one number downwards:
+    
+    // 1. Define the fabric output DSD
+    // .extent = 1 means we are sending exactly one wavelet
+    const out_dsd = @get_dsd(fabout_dsd, .{
+      .extent = 1,
+      .fabric_color = broadcast_tx_color
+    });
+
+    // 2. Send the first value of your B matrix (or a test float like 42.0)
+    // @fmovs is the float-move instruction
+    @fmovs(out_dsd, B[0]);
+  }
 }
 
 // SAFE SECTION BEGIN
@@ -150,7 +293,12 @@ fn terminate_kernel() void {
 comptime {
   @comptime_assert(@is_arch("wse2"));
 
+  // Bind local task for async sending
+  @bind_local_task(send_b_element, @get_local_task_id(SEND_TASK_ID));
+
   // TODO: Set up input queues, bind data/local tasks, initialize queues
+  const recv_broadcast_task_id = @get_data_task_id(broadcast_tx_color); // broadcast_tx_color is the SOUTH send color
+  @bind_data_task(recv_broadcast_task, recv_broadcast_task_id);
 
   @export_symbol(ptr_A, "A");
   @export_symbol(ptr_B, "B");
