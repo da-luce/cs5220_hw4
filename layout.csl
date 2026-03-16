@@ -183,6 +183,7 @@ layout {
   // 1. Passthrough - the PE forwards wavelets from SOUTH to NORTH without modification
   // 2. Send - the PE sends its own data from RAMP to NORTH
   const RX_S_TX_N = .{ .rx = .{ SOUTH }, .tx = .{ NORTH }}; // 1. Passthrough
+  const RX_RS_TX_N = .{ .rx = .{ RAMP, SOUTH }, .tx = .{ NORTH }}; // 1. Passthrough
   const RX_R_TX_N = .{ .rx = .{ RAMP }, .tx = .{ NORTH }}; // 2. Send
 
   // Compose both of these routes into an alternating switch
@@ -235,7 +236,10 @@ layout {
       if (pe_y == 0) {
         // Receives from itself (RAMP) and sends to itself + SOUTH--this is
         // used during the first initial broadcast
-        @set_color_config(pe_x, pe_y, broadcast_tx_color, .{ .routes = RX_R_TX_RS });
+        // swap x and y are here for the "duality" of color swapping, so broadcast_rx_color is perfectly
+        // mirrored: https://sdk.cerebras.net/csl/language/advanced-features#language-advanced-features-color-swapping
+        // Read the docs carefully
+        @set_color_config(pe_x, pe_y, broadcast_tx_color, .{ .routes = .{ .rx = .{ RAMP, SOUTH }, .tx = .{ RAMP, SOUTH }, .color_swap_y = true, .color_swap_x = true } });
       } else if (pe_y == kernel_y_dim - 1) {
         // For the bottom row, no need to transmit downwards since there is no one below to receive
         @set_color_config(pe_x, pe_y, broadcast_tx_color, .{ .routes = RX_N_TX_R });
@@ -248,10 +252,11 @@ layout {
       if (pe_y == 0) {
         // For the top row, we need to swap the color on Y to flip the broadcast from rx to tx
         // FIXME: color swapped before any routing?
-        @set_color_config(pe_x, pe_y, broadcast_rx_color, .{ .routes = .{ .rx = .{ SOUTH }, .tx = .{ RAMP, SOUTH }, .color_swap_y = true } });
+        // swap on x and y is needed for swap coming from the ramp, so that when the first row sends on on the elevator, the color is swapped to broadcast_tx_color and sent south
+        @set_color_config(pe_x, pe_y, broadcast_rx_color, .{ .routes = .{ .rx = .{ RAMP, SOUTH }, .tx = .{ RAMP, SOUTH }, .color_swap_y = true, .color_swap_x = true } });
         // The color swap will have the wavelet sent back downwards
       } else {
-        @set_color_config(pe_x, pe_y, broadcast_rx_color, .{ .routes = RX_S_TX_N , .switches = up_switches });
+        @set_color_config(pe_x, pe_y, broadcast_rx_color, .{ .routes = RX_RS_TX_N });
       }
     }
   }
