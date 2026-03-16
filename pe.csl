@@ -166,9 +166,15 @@ var mem_B_col_dsd = @get_dsd(mem1d_dsd, .{
 // FIXME: not really sure about this one...
 
 // Broadcast send: Pushes a column of B (length dH) UP the elevator.
+// const fab_bcast_out_dsd = @get_dsd(fabout_dsd, .{
+//   .extent = dH,
+//   .fabric_color = broadcast_rx_color,
+//   .output_queue = broadcast_oq
+// });
+
 const fab_bcast_out_dsd = @get_dsd(fabout_dsd, .{
   .extent = dH,
-  .fabric_color = broadcast_rx_color,
+  .fabric_color = broadcast_tx_color, // FIXED: was broadcast_rx_color
   .output_queue = broadcast_oq
 });
 
@@ -214,39 +220,33 @@ fn debug_print_b_column(local_col_idx: i16) void {
 }
 
 // -----------------------------------------------------------------------------
-// 1. Create single-element DSDs
-var fab_bcast_single_dsd = @get_dsd(fabout_dsd, .{
-  .extent = 1,
-  .fabric_color = broadcast_rx_color,
-  .output_queue = broadcast_oq
-});
 
-var mem_B_single_dsd = @get_dsd(mem1d_dsd, .{
-  .tensor_access = |i|{1} -> B[i] // Notice extent is 1
-});
+// Helper function to send all local columns of B down the fabric
+fn send_all_b_columns() void {
+  simprint_pe_coords();
+  prt.print_string("Starting broadcast of ALL columns of B\n");
 
-// 2. State for our non-blocking task
-var send_idx: i16 = 0;
-const SEND_TASK_ID = 8;
+  var col: i16 = 0;
+  // dN_y is the number of B columns this PE holds
+  while (col < dN_y) : (col += 1) {
+    
+    // Send the current column of B (length dH) out to the fabric asynchronously
+    @fmovs(fab_bcast_out_dsd, mem_B_col_dsd, .{ .async = true });
 
-// 3. The asynchronous send task
-task send_b_element() void {
-  if (send_idx < dH) {
-    // Send 1 element
-    @fmovs(fab_bcast_single_dsd, mem_B_single_dsd);
-    
-    // Bump the memory pointer by 1 float
-    @increment_dsd_offset(mem_B_single_dsd, 1, f32);
-    
-    send_idx += 1;
-    
-    // Schedule this task to run again (yields the CE so it can receive data!)
-    @activate(@get_local_task_id(SEND_TASK_ID));
-  } else {
-    // We finished our column. Tell the switch it is the next PE's turn.
-    const adv_cmd = ctrl.encode_single_payload(ctrl.opcode.SWITCH_ADV, true, {}, 0);
-    @mov32(fab_bcast_ctrl_dsd, adv_cmd);
+    // Shift our memory DSD forward by dH elements to point to the next column
+    mem_B_col_dsd = @increment_dsd_offset(mem_B_col_dsd, dH, f32);
   }
+}
+
+fn advance_broadcast() void {
+  // Advance the switch to send the next column of B in the next iteration.
+  // This is needed for the PEs in the column to take turns broadcasting.
+  const switch_payload = ctrl.encode_single_payload(ctrl.opcode.SWITCH_ADV, true, {}, 0);
+  @mov32(fab_bcast_ctrl_dsd, switch_payload);
+}
+
+fn is_top_row() bool {
+  return layout_mod.get_y_coord() == 0;
 }
 
 // =============================================================================
@@ -262,22 +262,12 @@ fn broadcast_pe() void {
 
   // The top PE (y = 0) starts the sequence by sending its first column.
   // PEs below (y > 0) do nothing here; they wait for wavelets to arrive.
-  if (layout_mod.get_y_coord() == 0) {
+  if (is_top_row()) {
     simprint_pe_coords();
     prt.print_string("Starting broadcast of B column 0\n");
 
-    // Test: send one number downwards:
-    
-    // 1. Define the fabric output DSD
-    // .extent = 1 means we are sending exactly one wavelet
-    const out_dsd = @get_dsd(fabout_dsd, .{
-      .extent = 1,
-      .fabric_color = broadcast_tx_color
-    });
-
-    // 2. Send the first value of your B matrix (or a test float like 42.0)
-    // @fmovs is the float-move instruction
-    @fmovs(out_dsd, B[0]);
+    send_all_b_columns();
+    // advance_broadcast();
   }
 }
 
@@ -294,7 +284,7 @@ comptime {
   @comptime_assert(@is_arch("wse2"));
 
   // Bind local task for async sending
-  @bind_local_task(send_b_element, @get_local_task_id(SEND_TASK_ID));
+  // @bind_local_task(send_b_element, @get_local_task_id(SEND_TASK_ID));
 
   // TODO: Set up input queues, bind data/local tasks, initialize queues
   const recv_broadcast_task_id = @get_data_task_id(broadcast_tx_color); // broadcast_tx_color is the SOUTH send color
