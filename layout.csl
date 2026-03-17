@@ -188,23 +188,14 @@ layout {
   const RX_RS_TX_N = .{ .rx = .{ RAMP, SOUTH }, .tx = .{ NORTH }}; // 1. Passthrough
   const RX_R_TX_N = .{ .rx = .{ RAMP }, .tx = .{ NORTH }}; // 2. Send
 
-  // Compose both of these routes into an alternating switch
-  const up_switches = .{
-    // Pos 0 is the default route           // Passthrough
-    .pos1 = .{ .rx = RAMP },           // Send
-    .pos2 = .{ .rx = SOUTH },          // Passthrough
-    .pos3 = .{ .rx = RAMP },           // Send
-    .current_switch_pos = 0,
-    .ring_mode = true,                      // Wrap around to pos0
-    .pop_mode = .{ .pop_on_advance = true }, // Do not forward the SWITCH_ADV signal... or do we want to?
-  };
-
-   // Compose both of these routes into an alternating switch
+  // Control switches for the broadcast sequencing color (broadcast_ctrl_color)
+  // There is only one position, but we need to define a switch so we can pop
+  // control commands on control wavelets
   const ctrl_switches = .{
-    // Pos 0 is the default route           // Passthrough
+    // Pos 0 is the default route         // Passthrough
     .current_switch_pos = 0,
-    .ring_mode = true,                      // Wrap around to pos0
-    .pop_mode = .{ .always_pop = true }, // Always pop
+    .ring_mode = true,                    // Wrap around to pos0... not sure if this matters
+    .pop_mode = .{ .always_pop = true },  // Always pop
   };
  
 
@@ -212,7 +203,9 @@ layout {
   for (@range(i16, kernel_x_dim)) |pe_x| {
     for (@range(i16, kernel_y_dim)) |pe_y| {
 
-      // FIXME: one column receives from host2device??
+      // -----------------------------------------------------------------------
+      // Reduction ring routes
+      // -----------------------------------------------------------------------
 
       // reduce_A_color
       // On even columns, reduce_A_color is the "tx" color, receiving values up ramp and sending to east
@@ -243,14 +236,26 @@ layout {
         @set_color_config(pe_x, pe_y, reduce_C_color, .{ .routes = RX_E_TX_W });
       }
 
+      // -----------------------------------------------------------------------
+      // Broadcast routes
+      // ------------------------------------------------------------------------
+
       // broadcast_tx_color
       if (pe_y == 0) {
         // Receives from itself (RAMP) and sends to itself + SOUTH--this is
         // used during the first initial broadcast
-        // swap x and y are here for the "duality" of color swapping, so broadcast_rx_color is perfectly
-        // mirrored: https://sdk.cerebras.net/csl/language/advanced-features#language-advanced-features-color-swapping
-        // Read the docs carefully
-        @set_color_config(pe_x, pe_y, broadcast_tx_color, .{ .routes = .{ .rx = .{ RAMP, SOUTH }, .tx = .{ RAMP, SOUTH }, .color_swap_y = true, .color_swap_x = true } });
+        // swap x and y are here for the "duality" of color swapping, so
+        // broadcast_rx_color is perfectly mirrored:
+        // https://sdk.cerebras.net/csl/language/advanced-features#language-advanced-features-color-swapping
+        // Read the docs carefully!
+        @set_color_config(
+          pe_x,
+          pe_y,
+          broadcast_tx_color,
+          .{ 
+            .routes = .{ .rx = .{ RAMP, SOUTH }, .tx = .{ RAMP, SOUTH }, .color_swap_y = true, .color_swap_x = true }
+          }
+        );
       } else if (pe_y == kernel_y_dim - 1) {
         // For the bottom row, no need to transmit downwards since there is no one below to receive
         @set_color_config(pe_x, pe_y, broadcast_tx_color, .{ .routes = RX_N_TX_R });
@@ -261,10 +266,17 @@ layout {
 
       // broadcast_rx_color
       if (pe_y == 0) {
-        // For the top row, we need to swap the color on Y to flip the broadcast from rx to tx
-        // FIXME: color swapped before any routing?
-        // swap on x and y is needed for swap coming from the ramp, so that when the first row sends on on the elevator, the color is swapped to broadcast_tx_color and sent south
-        @set_color_config(pe_x, pe_y, broadcast_rx_color, .{ .routes = .{ .rx = .{ RAMP, SOUTH }, .tx = .{ RAMP, SOUTH }, .color_swap_y = true, .color_swap_x = true } });
+        // For the top row, we need to swap the color on Y to flip the broadcast
+        // from rx to tx
+        // Swap on x and y is needed for swap coming from the ramp, so that when
+        // the first row sends on on the elevator, the color is swapped to
+        // broadcast_tx_color and sent south
+        @set_color_config(
+          pe_x,
+          pe_y,
+          broadcast_rx_color,
+          .{ .routes = .{ .rx = .{ RAMP, SOUTH }, .tx = .{ RAMP, SOUTH }, .color_swap_y = true, .color_swap_x = true } }
+        );
         // The color swap will have the wavelet sent back downwards
       } else {
         @set_color_config(pe_x, pe_y, broadcast_rx_color, .{ .routes = RX_RS_TX_N });
