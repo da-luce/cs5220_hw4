@@ -123,12 +123,38 @@ var ptr_C: [*]f32 = &C;
 
 
 var current_row: i16 = 0; // This can be removed if you find a better way.
+var wavelets_received: i16 = 0;
+var columns_processed: i16 = 0;
 task recv_broadcast_task(in_data: f32) void {
   // TODO: Implement the task that receives broadcast wavelets, performs SAXPY, and triggers reduction when a column is done.
 
   // Print what we received for debugging
   simprint_pe_coords();
   prt.fmt_no_nl("Received data: {f}\n", .{in_data});
+
+  wavelets_received += 1;
+
+  if (wavelets_received == dH) {
+    wavelets_received = 0;
+    columns_processed += 1;
+
+    // If we have processed all the columns for the CURRENT broadcaster
+    if (columns_processed == dN_y) {
+      columns_processed = 0;
+
+      // If I am the one who just broadcasted, I now know for a fact 
+      // my data is through the switch. Now I can safely advance!
+      const is_current_broadcaster = layout_mod.get_y_coord() == @as(u16, current_row);
+      if (is_current_broadcaster) {
+         if (layout_mod.get_y_coord() < @as(u16, kernel_y_dim) - 1) {
+            advance_broadcast();
+         }
+         current_row += 1; // Update state so we know the next row is broadcasting
+      } else {
+         current_row += 1; // Keep track of who the current broadcaster is
+      }
+    }
+  }
 }
 
 // Note to self:
@@ -166,16 +192,7 @@ var mem_B_col_dsd = @get_dsd(mem1d_dsd, .{
 
 // FIXME: not really sure about this one...
 
-fn is_top_row() bool {
-  return layout_mod.get_y_coord() == 0;
-}
 
-
-// const fab_bcast_out_dsd = @get_dsd(fabout_dsd, .{
-//   .extent = dH,
-//   .fabric_color = broadcast_rx_color,
-//   .output_queue = broadcast_oq
-// });
 
 // Broadcast send: Pushes a column of B (length dH) UP the elevator.
 const fab_bcast_out_dsd = @get_dsd(fabout_dsd, .{
@@ -204,34 +221,11 @@ const fab_reduce_in_dsd = @get_dsd(fabin_dsd, .{
   .input_queue = reduce_iq
 });
 
-// Control dsd (moves down - use tx)
-// const fab_bcast_ctrl_dsd = @get_dsd(fabout_dsd, .{
-//   .extent = 1,
-//   .fabric_color = broadcast_tx_color,
-//   .output_queue = broadcast_oq,
-//   .control = true,
-// });
-
 // -----------------------------------------------------------------------------
 
-fn debug_print_b_column(local_col_idx: i16) void {
-  const start_idx = local_col_idx * dH;
-  
-  simprint_pe_coords();
-  prt.fmt_no_nl("Printing B-Matrix Column {d}:\n", .{@as(u16, local_col_idx)});
-
-  var i: i16 = 0;
-  while (i < dH) : (i += 1) {
-    // Both start_idx and i are i16, so the result is i16. 
-    // No need for u32 here.
-    const val = B[@as(u16, start_idx + i)]; 
-    
-    simprint_pe_coords();
-    prt.fmt_no_nl("  B[{d}] = {f}\n", .{@as(u16, i), val});
-  }
+fn is_top_row() bool {
+  return layout_mod.get_y_coord() == 0;
 }
-
-// -----------------------------------------------------------------------------
 
 // Helper function to send all local columns of B down the fabric
 fn send_all_b_columns() void {
@@ -243,6 +237,7 @@ fn send_all_b_columns() void {
   while (col < dN_y) : (col += 1) {
 
     // Send "up" the elevator
+    // This NEEDS to be async, otherwise we stall hard
     @fmovs(fab_bcast_out_dsd, mem_B_col_dsd, .{ .async = true });
 
     // Shift our memory DSD forward by dH elements to point to the next column
@@ -261,33 +256,40 @@ const fab_bcast_ctrl_dsd = @get_dsd(fabout_dsd, .{
   .output_queue = broadcast_oq
 });
 
-
 const recv_ctrl_id: control_task_id = @get_control_task_id(40);
+
 // Control task receives 16-bit data from ctrl wavelet paylaod
 task recv_ctrl_task(data: u16) void {
   simprint_pe_coords();
   prt.fmt_no_nl("Received control signal: {d}\n", .{data});
 
+  // Send our column
   send_all_b_columns();
-
-  if (layout_mod.get_y_coord() < @as(u16, kernel_y_dim) - 1) {
-    // As long as we are not the bottom row, trigger the next broadcast
-    advance_broadcast();
-  }
 }
-
-const ctrl_payload = ctrl.encode_payload(
-  2, // Number of commands within the wavelet
-  [2]ctrl.opcode{ ctrl.opcode.NOP, ctrl.opcode.NOP },// Don't do anything to the switches
-  [2]bool{ true, false }, // First CE ignores the payload, second CE does not
-  true, // ignore remaining
-  recv_ctrl_id, // Send to the control task
-);
 
 fn advance_broadcast() void {
+
+  // This one takes some thinking. The broadcast_ctrl_color is configured as
+  // as:
+  // rx: RAMP, NORTH
+  // tx: RAMP, SOUTH
+  // This means that when we send on this color, the wavelet will go to our PE router
+  // and then be sent to RAMP (ourselves) and SOUTH. We don't want to control our
+  // switch, so we set the first command to be NOP and set its CE to true so that
+  // we ignore the payload. The second command is also NOP but with CE false, so
+  // that the payload (the control signal) goes to the SOUTH and triggers the next
+  // PE in the column to broadcast. Switches are configured to always pop, so for
+  // the third switch, the payload will be ignored since there are no more commands.
+  const ctrl_payload = ctrl.encode_payload(
+    2, // Number of commands within the wavelet
+    [2]ctrl.opcode{ ctrl.opcode.NOP, ctrl.opcode.NOP },// Don't do anything to the switches
+    [2]bool{ true, false }, // First CE ignores the payload, second CE does not
+    true, // ignore remaining
+    recv_ctrl_id, // Send to the control task
+  );
+
   @mov32(fab_bcast_ctrl_dsd, ctrl_payload);
 }
-
 
 // =============================================================================
 // Entry point: called by the host via runner.launch('broadcast_pe')
@@ -298,14 +300,13 @@ fn broadcast_pe() void {
   start_timer();
   // SAFE SECTION END
 
-  // debug_print_b_column(0);
-
-  // The top PE (y = 0) starts the sequence by sending its first column.
-  // PEs below (y > 0) do nothing here; they wait for wavelets to arrive.
+  // The top PE (y = 0) starts the sequence by sending its first column
   if (layout_mod.get_y_coord() == 0) {
 
+    // Manually trigger the first broadcast since there is no incoming wavelet
+    // to trigger the top row
     send_all_b_columns();
-    advance_broadcast();
+
   }
 }
 
@@ -320,9 +321,6 @@ fn terminate_kernel() void {
 
 comptime {
   @comptime_assert(@is_arch("wse2"));
-
-  // Bind local task for async sending
-  // @bind_local_task(send_b_element, @get_local_task_id(SEND_TASK_ID));
 
   // TODO: Set up input queues, bind data/local tasks, initialize queues
   const recv_broadcast_task_id = @get_data_task_id(broadcast_tx_color); // broadcast_tx_color is the SOUTH send color
