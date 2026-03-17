@@ -132,6 +132,85 @@ var mem_red_in_dsd = @get_dsd(mem1d_dsd, .{
   .tensor_access = |i|{dM} -> red_in[i]
 });
 
+
+// -----------------------------------------------------------------------------
+// Reduction logic
+// -----------------------------------------------------------------------------
+
+const ReduceState = enum(i16) {
+  ISUM, // Initiator: Sends local partial sum to the right
+  PSUM, // Pass-through: Receives, adds, and sends right
+  FSUM  // Final accumulator: Receives, adds, and writes to C
+};
+
+fn get_reduce_state(call_idx: i16) ReduceState {
+    const my_x = @as(i16, layout_mod.get_x_coord());
+    
+    const fsum_pe = @as(i16, call_idx % kernel_x_dim);
+    const isum_pe = @as(i16, (call_idx + 1) % kernel_x_dim);
+
+    var state: ReduceState = ReduceState.PSUM;
+
+    if (my_x == isum_pe) {
+        state = ReduceState.ISUM;
+    } else if (my_x == fsum_pe) {
+        state = ReduceState.FSUM;
+    }
+
+    simprint_pe_coords();
+    // Fixed: Added placeholders for isum/fsum and cast state to u16 for printing
+    prt.fmt_no_nl("Reduction call {d}: ISUM={d} ", .{@as(u16, call_idx), @as(u16, isum_pe)});
+    prt.fmt_no_nl("FSUM={d} MyState={d}\n", .{@as(u16, fsum_pe), @as(u16, state)});
+
+    return state;
+}
+
+// Track how many times we've called the reduction logic to determine the state
+// and when we're done
+var reduction_call_idx: i16 = 0;
+
+fn do_reduction() void {
+  simprint_pe_coords();
+  // prt.fmt_no_nl("Starting reduction call {d}\n", .{@as(u16, reduction_call_idx)});
+
+  const state = get_reduce_state(reduction_call_idx);
+
+  // Synchronous execution! The microthread will block until the hardware queue
+  // dependencies are met, ensuring perfectly safe handshaking around the ring.
+  switch (state) {
+    ReduceState.ISUM => {
+      // Initiate: Send local partial sum out to the right
+      @fmovs(fab_reduce_out_dsd, mem_red_in_dsd);
+    },
+    ReduceState.PSUM => {
+      // Pass-through: Receive from left, add local, send to right
+      @fadds(fab_reduce_out_dsd, mem_red_in_dsd, fab_reduce_in_dsd);
+    },
+    ReduceState.FSUM => {
+      // Terminate: Receive from left, add local, write to local C matrix!
+      @fadds(mem_C_col_dsd, mem_red_in_dsd, fab_reduce_in_dsd);
+      
+      // Advance C memory pointer to the next column for our next FSUM rotation
+      mem_C_col_dsd = @increment_dsd_offset(mem_C_col_dsd, dM, f32);
+    },
+  }
+
+  // Zero out the red_in accumulation buffer so it's clean for the next B-column broadcast
+  var i: u16 = 0;
+  while (i < @as(u16, dM)) : (i += 1) {
+    red_in[i] = 0.0;
+  }
+
+  reduction_call_idx += 1;
+
+  // Completion Detection!
+  // We process `dN_y` columns for every PE in the column (`kernel_y_dim`)
+  const total_reductions = kernel_y_dim * dN_y;
+  if (reduction_call_idx == total_reductions) {
+    terminate_kernel();
+  }
+}
+
 // -----------------------------------------------------------------------------
 
 var current_row: i16 = 0; // This can be removed if you find a better way.
@@ -157,7 +236,8 @@ task recv_broadcast_task(in_data: f32) void {
     // Reset A back to the start of the matrix for the next B column
     mem_A_col_dsd = @increment_dsd_offset(mem_A_col_dsd, -(dM * dH), f32);
 
-    // TODO: Trigger the reduction state machine for `red_in` here!
+    // Trigger the reduction state machine to push the result horizontally!
+    do_reduction();
 
     // If we have processed all the columns for the CURRENT broadcaster
     if (columns_processed == dN_y) {

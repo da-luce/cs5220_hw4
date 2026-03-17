@@ -3,3 +3,4 @@ sim.log
 simconfig.json
 config.pyc
 *tmpdir*
+sim_stats.json

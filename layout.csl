@@ -166,7 +166,7 @@ layout {
   const RX_R_TX_E = .{ .rx = .{ RAMP }, .tx = .{ EAST }}; // Data coming from the RAMP and going east to the next PE
 
   // Flyover routes
-  const RX_E_TX_W = .{ .rx = .{ WEST }, .tx = .{ EAST }}; // Middle columns - send in reverse (east to west)
+  const RX_E_TX_W = .{ .rx = .{ EAST }, .tx = .{ WEST }}; // Middle columns - send in reverse (east to west)
   const RX_R_TX_W = .{ .rx = .{ RAMP }, .tx = .{ WEST }}; // Eastern most column
   const RX_E_TX_R = .{ .rx = .{ EAST }, .tx = .{ RAMP }}; // Western most column
 
