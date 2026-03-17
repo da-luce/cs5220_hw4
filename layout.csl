@@ -34,6 +34,7 @@ param N: i16;
 // Colors
 const broadcast_rx_color: color = @get_color(0);
 const broadcast_tx_color: color = @get_color(1);
+const broadcast_ctrl_color: color = @get_color(8); // Used for sequencing rows
 
 // Reduction colors: three colors needed for the interleaved ring reduction
 const reduce_A_color: color = @get_color(5);
@@ -84,6 +85,7 @@ layout {
     .kernel_y_dim = kernel_y_dim,
     .broadcast_tx_color = broadcast_tx_color,
     .broadcast_rx_color = broadcast_rx_color,
+    .broadcast_ctrl_color = broadcast_ctrl_color,
   };
 
   // ===========================================================================
@@ -197,6 +199,15 @@ layout {
     .pop_mode = .{ .pop_on_advance = true }, // Do not forward the SWITCH_ADV signal... or do we want to?
   };
 
+   // Compose both of these routes into an alternating switch
+  const ctrl_switches = .{
+    // Pos 0 is the default route           // Passthrough
+    .current_switch_pos = 0,
+    .ring_mode = true,                      // Wrap around to pos0
+    .pop_mode = .{ .always_pop = true }, // Always pop
+  };
+ 
+
   // Setup router information for each PE
   for (@range(i16, kernel_x_dim)) |pe_x| {
     for (@range(i16, kernel_y_dim)) |pe_y| {
@@ -258,6 +269,10 @@ layout {
       } else {
         @set_color_config(pe_x, pe_y, broadcast_rx_color, .{ .routes = RX_RS_TX_N });
       }
+
+      // broadcast_ctrl_color
+      // This color is used for sequencing the broadcast waves. It needs to be sent from the RAMP to the SOUTH at every PE so that each PE can switch to the next color after processing each wave.
+      @set_color_config(pe_x, pe_y, broadcast_ctrl_color, .{ .routes = .{ .rx = .{ RAMP, NORTH }, .tx = .{ RAMP, SOUTH }}, .switches = ctrl_switches });
     }
   }
 
