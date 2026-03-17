@@ -226,6 +226,9 @@ task recv_broadcast_task(in_data: f32) void {
   // 1. Hardware SAXPY: red_in = red_in + (A_col * in_data)
   @fmacs(mem_red_in_dsd, mem_red_in_dsd, mem_A_col_dsd, in_data);
 
+  // Advance A to the next column for the next incoming wavelet
+  mem_A_col_dsd = @increment_dsd_offset(mem_A_col_dsd, dM, f32);
+
   wavelets_received += 1;
 
   if (wavelets_received == dH) {
