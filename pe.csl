@@ -122,21 +122,42 @@ var ptr_C: [*]f32 = &C;
 // =============================================================================
 
 
+// -----------------------------------------------------------------------------
+// Local accumulation buffer for partial sum
+// ------------------------------------------------------------------------------
+
+var red_in: [dM]f32 = @zeros([dM]f32);
+
+var mem_red_in_dsd = @get_dsd(mem1d_dsd, .{
+  .tensor_access = |i|{dM} -> red_in[i]
+});
+
+// -----------------------------------------------------------------------------
+
 var current_row: i16 = 0; // This can be removed if you find a better way.
 var wavelets_received: i16 = 0;
 var columns_processed: i16 = 0;
 task recv_broadcast_task(in_data: f32) void {
   // TODO: Implement the task that receives broadcast wavelets, performs SAXPY, and triggers reduction when a column is done.
 
-  // Print what we received for debugging
+  // 0. Print what we received for debugging
   simprint_pe_coords();
   prt.fmt_no_nl("Received data: {f}\n", .{in_data});
+
+  // 1. Hardware SAXPY: red_in = red_in + (A_col * in_data)
+  @fmacs(mem_red_in_dsd, mem_red_in_dsd, mem_A_col_dsd, in_data);
 
   wavelets_received += 1;
 
   if (wavelets_received == dH) {
     wavelets_received = 0;
     columns_processed += 1;
+
+    // We have fully accumulated one column of B into `red_in`!
+    // Reset A back to the start of the matrix for the next B column
+    mem_A_col_dsd = @increment_dsd_offset(mem_A_col_dsd, -(dM * dH), f32);
+
+    // TODO: Trigger the reduction state machine for `red_in` here!
 
     // If we have processed all the columns for the CURRENT broadcaster
     if (columns_processed == dN_y) {
