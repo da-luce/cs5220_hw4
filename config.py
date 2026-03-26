@@ -45,7 +45,7 @@ B_GLOBAL_TRANSPOSE = True
 # H-length rows (which are the original columns of B!) are perfectly contiguous 
 # in local memory. This allows the Phase 1 sender to broadcast the column 
 # using a simple, fast 1D DSD.
-B_MEMORY_TRANSPOSE = False
+B_MEMORY_TRANSPOSE = True
 
 # --- Matrix C (M x N) ---
 # GLOBAL: Natural layout. The final output dimensions M (Y-axis) and N (X-axis) 

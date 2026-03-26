@@ -143,18 +143,15 @@ const ReduceState = enum(i16) {
   FSUM  // Final accumulator: Receives, adds, and writes to C
 };
 
-fn get_reduce_state(call_idx: i16) ReduceState {
+fn get_reduce_state(red_idx: i16) ReduceState {
     const my_x = @as(i16, layout_mod.get_x_coord());
     
-    // We rotate the roles as the README describes.
-    //   Call #    PE0      PE1      PE2      PE3      Chain (ISUM -> ... -> FSUM)
-    // -----   ------   ------   ------   ------    ---------------------------
-    // 0      FSUM     ISUM     PSUM     PSUM     PE1 -> PE2 -> PE3 -> PE0
-    // 1      PSUM     FSUM     ISUM     PSUM     PE2 -> PE3 -> PE0 -> PE1
-    // 2      PSUM     PSUM     FSUM     ISUM     PE3 -> PE0 -> PE1 -> PE2
-    // 3      ISUM     PSUM     PSUM     FSUM     PE0 -> PE1 -> PE2 -> PE3
-    const fsum_pe = @as(i16, call_idx % kernel_x_dim);
-    const isum_pe = @as(i16, (call_idx + 1) % kernel_x_dim);
+    // red_idx corresponds perfectly to the global B/C column index (0 to N-1).
+    // Because C is in Natural layout, columns are distributed in chunks of dN.
+    const fsum_pe = @as(i16, red_idx / dN);
+    
+    // The initiator is always the PE to the right of the final accumulator
+    const isum_pe = @as(i16, (fsum_pe + 1) % kernel_x_dim);
 
     var state: ReduceState = ReduceState.PSUM;
 
@@ -166,7 +163,6 @@ fn get_reduce_state(call_idx: i16) ReduceState {
 
     return state;
 }
-
 // Track how many times we've called the reduction logic to determine the state
 // and when we're done
 var reduction_call_idx: i16 = 0;
@@ -175,7 +171,7 @@ fn do_reduction() void {
   simprint_pe_coords();
   // prt.fmt_no_nl("Starting reduction call {d}\n", .{@as(u16, reduction_call_idx)});
 
-  const state = get_reduce_state(current_row);
+  const state = get_reduce_state(reduction_call_idx);
 
   // Synchronous execution! The microthread will block until the hardware queue
   // dependencies are met, ensuring perfectly safe handshaking around the ring.
@@ -288,8 +284,8 @@ var mem_C_col_dsd = @get_dsd(mem1d_dsd, .{
 //  Memory DSD spanning the entire local B block
 // Fast because B is row-major, but globally transposed, so the 
 // original columns of B are contiguous chunks of length dH.
-var mem_B_block_dsd = @get_dsd(mem4d_dsd, .{
-    .tensor_access = |i,j|{dH, dN_y} -> B[i * dN_y + j]
+var mem_B_block_dsd = @get_dsd(mem1d_dsd, .{
+  .tensor_access = |i|{dH * dN_y} -> B[i]
 });
 
 // -----------------------------------------------------------------------------
@@ -396,6 +392,10 @@ fn broadcast_pe() void {
   // SAFE SECTION BEGIN
   start_timer();
   // SAFE SECTION END
+
+  // simprint_pe_coords();
+  // prt.fmt_no_nl("Init: A[0]={f}, A[1]={f}, B[0]={f}, B[1]={f}\n", .{A[0], A[1], B[0], B[1]});
+
 
   // The top PE (y = 0) starts the sequence by sending its first column
   if (layout_mod.get_y_coord() == 0) {
