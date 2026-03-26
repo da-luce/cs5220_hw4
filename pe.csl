@@ -143,25 +143,40 @@ const ReduceState = enum(i16) {
   FSUM  // Final accumulator: Receives, adds, and writes to C
 };
 
-fn get_reduce_state(red_idx: i16) ReduceState {
+
+// Track the active PEs using simple counters instead of division/modulo
+var current_fsum_pe: i16 = 0;
+var current_isum_pe: i16 = 1; // PE grid is always wider than 1
+var columns_in_chunk: i16 = 0;
+fn get_reduce_state() ReduceState {
     const my_x = @as(i16, layout_mod.get_x_coord());
     
-    // red_idx corresponds perfectly to the global B/C column index (0 to N-1).
-    // Because C is in Natural layout, columns are distributed in chunks of dN.
-    const fsum_pe = @as(i16, red_idx / dN);
-    
-    // The initiator is always the PE to the right of the final accumulator
-    const isum_pe = @as(i16, (fsum_pe + 1) % kernel_x_dim);
-
-    var state: ReduceState = ReduceState.PSUM;
-
-    if (my_x == isum_pe) {
-        state = ReduceState.ISUM;
-    } else if (my_x == fsum_pe) {
-        state = ReduceState.FSUM;
+    if (my_x == current_isum_pe) {
+        return ReduceState.ISUM;
+    } else if (my_x == current_fsum_pe) {
+        return ReduceState.FSUM;
     }
+    
+    return ReduceState.PSUM;
+}
 
-    return state;
+fn advance_reduce_state() void {
+    columns_in_chunk += 1;
+    
+    // When we finish a chunk of dN columns, shift the accumulator to the right
+    if (columns_in_chunk == dN) {
+        columns_in_chunk = 0;
+        
+        current_fsum_pe += 1;
+        if (current_fsum_pe == kernel_x_dim) {
+            current_fsum_pe = 0; // Wrap around (equivalent to modulo)
+        }
+        
+        current_isum_pe += 1;
+        if (current_isum_pe == kernel_x_dim) {
+            current_isum_pe = 0; // Wrap around (equivalent to modulo)
+        }
+    }
 }
 
 // Track how many times we've called the reduction logic to determine the state
@@ -169,10 +184,8 @@ fn get_reduce_state(red_idx: i16) ReduceState {
 var reduction_call_idx: i16 = 0;
 
 fn do_reduction() void {
-  // simprint_pe_coords();
-  // prt.fmt_no_nl("Starting reduction call {d}\n", .{@as(u16, reduction_call_idx)});
-
-  const state = get_reduce_state(reduction_call_idx);
+  // Get state
+  const state = get_reduce_state();
 
   // Synchronous execution! The microthread will block until the hardware queue
   // dependencies are met, ensuring perfectly safe handshaking around the ring.
@@ -196,6 +209,9 @@ fn do_reduction() void {
 
   // Zero out the red_in accumulation buffer using DSD instruction
   @fmovs(mem_red_in_dsd, 0.0);
+
+  // Advance state counters
+  advance_reduce_state();
 
   reduction_call_idx += 1;
 
