@@ -1,0 +1,407 @@
+Running correctness tests...
+========================================
+Testing sizeX=2 sizeY=2 M=8 H=8 N=8
+========================================
+Cleaning up old outputs and logs...
+Running with configuration: sizeX=2, sizeY=2, M=8, H=8, N=8
+compile successful
+SUCCESS: C = A @ B verified.
+
+TSC timer (cycles per PE):
+  Min:  3545
+  Max:  3607
+  Mean: 3576.0
+PASS: sizeX=2 sizeY=2 M=8 H=8 N=8
+========================================
+Testing sizeX=4 sizeY=4 M=16 H=16 N=16
+========================================
+Cleaning up old outputs and logs...
+Running with configuration: sizeX=4, sizeY=4, M=16, H=16, N=16
+compile successful
+SUCCESS: C = A @ B verified.
+
+TSC timer (cycles per PE):
+  Min:  7107
+  Max:  7258
+  Mean: 7187.2
+PASS: sizeX=4 sizeY=4 M=16 H=16 N=16
+========================================
+Testing sizeX=2 sizeY=4 M=8 H=8 N=8
+========================================
+Cleaning up old outputs and logs...
+Running with configuration: sizeX=2, sizeY=4, M=8, H=8, N=8
+compile successful
+SUCCESS: C = A @ B verified.
+
+TSC timer (cycles per PE):
+  Min:  2628
+  Max:  2685
+  Mean: 2656.2
+PASS: sizeX=2 sizeY=4 M=8 H=8 N=8
+========================================
+Testing sizeX=2 sizeY=8 M=16 H=16 N=16
+========================================
+Cleaning up old outputs and logs...
+Running with configuration: sizeX=2, sizeY=8, M=16, H=16, N=16
+compile successful
+SUCCESS: C = A @ B verified.
+
+TSC timer (cycles per PE):
+  Min:  7970
+  Max:  8100
+  Mean: 8034.6
+PASS: sizeX=2 sizeY=8 M=16 H=16 N=16
+========================================
+Testing sizeX=4 sizeY=8 M=16 H=16 N=16
+========================================
+Cleaning up old outputs and logs...
+Running with configuration: sizeX=4, sizeY=8, M=16, H=16, N=16
+compile successful
+SUCCESS: C = A @ B verified.
+
+TSC timer (cycles per PE):
+  Min:  5287
+  Max:  5440
+  Mean: 5367.5
+PASS: sizeX=4 sizeY=8 M=16 H=16 N=16
+========================================
+Testing sizeX=4 sizeY=8 M=32 H=16 N=32
+========================================
+Cleaning up old outputs and logs...
+Running with configuration: sizeX=4, sizeY=8, M=32, H=16, N=32
+compile successful
+SUCCESS: C = A @ B verified.
+
+TSC timer (cycles per PE):
+  Min:  14291
+  Max:  14617
+  Mean: 14463.9
+PASS: sizeX=4 sizeY=8 M=32 H=16 N=32
+========================================
+Testing sizeX=2 sizeY=2 M=16 H=16 N=16
+========================================
+Cleaning up old outputs and logs...
+Running with configuration: sizeX=2, sizeY=2, M=16, H=16, N=16
+compile successful
+SUCCESS: C = A @ B verified.
+
+TSC timer (cycles per PE):
+  Min:  12110
+  Max:  12245
+  Mean: 12177.5
+PASS: sizeX=2 sizeY=2 M=16 H=16 N=16
+========================================
+Testing sizeX=2 sizeY=4 M=16 H=8 N=16
+========================================
+Cleaning up old outputs and logs...
+Running with configuration: sizeX=2, sizeY=4, M=16, H=8, N=16
+compile successful
+SUCCESS: C = A @ B verified.
+
+TSC timer (cycles per PE):
+  Min:  7146
+  Max:  7280
+  Mean: 7212.8
+PASS: sizeX=2 sizeY=4 M=16 H=8 N=16
+========================================
+Testing sizeX=3 sizeY=3 M=9 H=9 N=9
+========================================
+Cleaning up old outputs and logs...
+Running with configuration: sizeX=3, sizeY=3, M=9, H=9, N=9
+compile successful
+SUCCESS: C = A @ B verified.
+
+TSC timer (cycles per PE):
+  Min:  3979
+  Max:  4058
+  Mean: 4020.3
+PASS: sizeX=3 sizeY=3 M=9 H=9 N=9
+========================================
+Testing sizeX=3 sizeY=6 M=6 H=9 N=6
+========================================
+Cleaning up old outputs and logs...
+Running with configuration: sizeX=3, sizeY=6, M=6, H=9, N=6
+compile successful
+SUCCESS: C = A @ B verified.
+
+TSC timer (cycles per PE):
+  Min:  2128
+  Max:  2175
+  Mean: 2153.2
+PASS: sizeX=3 sizeY=6 M=6 H=9 N=6
+========================================
+Testing sizeX=3 sizeY=6 M=12 H=9 N=18
+========================================
+Cleaning up old outputs and logs...
+Running with configuration: sizeX=3, sizeY=6, M=12, H=9, N=18
+compile successful
+SUCCESS: C = A @ B verified.
+
+TSC timer (cycles per PE):
+  Min:  6460
+  Max:  6623
+  Mean: 6546.5
+PASS: sizeX=3 sizeY=6 M=12 H=9 N=18
+========================================
+Testing sizeX=6 sizeY=6 M=12 H=12 N=12
+========================================
+Cleaning up old outputs and logs...
+Running with configuration: sizeX=6, sizeY=6, M=12, H=12, N=12
+compile successful
+SUCCESS: C = A @ B verified.
+
+TSC timer (cycles per PE):
+  Min:  3548
+  Max:  3653
+  Mean: 3603.8
+PASS: sizeX=6 sizeY=6 M=12 H=12 N=12
+========================================
+Testing sizeX=2 sizeY=2 M=2 H=2 N=2
+========================================
+Cleaning up old outputs and logs...
+Running with configuration: sizeX=2, sizeY=2, M=2, H=2, N=2
+compile successful
+SUCCESS: C = A @ B verified.
+
+TSC timer (cycles per PE):
+  Min:  433
+  Max:  442
+  Mean: 437.5
+PASS: sizeX=2 sizeY=2 M=2 H=2 N=2
+========================================
+Testing sizeX=4 sizeY=4 M=4 H=4 N=4
+========================================
+Cleaning up old outputs and logs...
+Running with configuration: sizeX=4, sizeY=4, M=4, H=4, N=4
+compile successful
+SUCCESS: C = A @ B verified.
+
+TSC timer (cycles per PE):
+  Min:  908
+  Max:  939
+  Mean: 924.8
+PASS: sizeX=4 sizeY=4 M=4 H=4 N=4
+========================================
+Testing sizeX=3 sizeY=3 M=3 H=3 N=3
+========================================
+Cleaning up old outputs and logs...
+Running with configuration: sizeX=3, sizeY=3, M=3, H=3, N=3
+compile successful
+SUCCESS: C = A @ B verified.
+
+TSC timer (cycles per PE):
+  Min:  798
+  Max:  820
+  Mean: 809.7
+PASS: sizeX=3 sizeY=3 M=3 H=3 N=3
+========================================
+Testing sizeX=2 sizeY=4 M=4 H=4 N=16
+========================================
+Cleaning up old outputs and logs...
+Running with configuration: sizeX=2, sizeY=4, M=4, H=4, N=16
+compile successful
+SUCCESS: C = A @ B verified.
+
+TSC timer (cycles per PE):
+  Min:  3748
+  Max:  3861
+  Mean: 3804.5
+PASS: sizeX=2 sizeY=4 M=4 H=4 N=16
+========================================
+Testing sizeX=2 sizeY=2 M=4 H=2 N=16
+========================================
+Cleaning up old outputs and logs...
+Running with configuration: sizeX=2, sizeY=2, M=4, H=2, N=16
+compile successful
+SUCCESS: C = A @ B verified.
+
+TSC timer (cycles per PE):
+  Min:  3105
+  Max:  3226
+  Mean: 3165.5
+PASS: sizeX=2 sizeY=2 M=4 H=2 N=16
+========================================
+Testing sizeX=2 sizeY=2 M=4 H=16 N=2
+========================================
+Cleaning up old outputs and logs...
+Running with configuration: sizeX=2, sizeY=2, M=4, H=16, N=2
+compile successful
+SUCCESS: C = A @ B verified.
+
+TSC timer (cycles per PE):
+  Min:  1004
+  Max:  1012
+  Mean: 1008.0
+PASS: sizeX=2 sizeY=2 M=4 H=16 N=2
+========================================
+Testing sizeX=4 sizeY=4 M=4 H=16 N=4
+========================================
+Cleaning up old outputs and logs...
+Running with configuration: sizeX=4, sizeY=4, M=4, H=16, N=4
+compile successful
+SUCCESS: C = A @ B verified.
+
+TSC timer (cycles per PE):
+  Min:  1362
+  Max:  1391
+  Mean: 1377.8
+PASS: sizeX=4 sizeY=4 M=4 H=16 N=4
+========================================
+Testing sizeX=2 sizeY=8 M=8 H=8 N=8
+========================================
+Cleaning up old outputs and logs...
+Running with configuration: sizeX=2, sizeY=8, M=8, H=8, N=8
+compile successful
+SUCCESS: C = A @ B verified.
+
+TSC timer (cycles per PE):
+  Min:  2808
+  Max:  2871
+  Mean: 2841.8
+PASS: sizeX=2 sizeY=8 M=8 H=8 N=8
+========================================
+Testing sizeX=2 sizeY=8 M=8 H=4 N=16
+========================================
+Cleaning up old outputs and logs...
+Running with configuration: sizeX=2, sizeY=8, M=8, H=4, N=16
+compile successful
+SUCCESS: C = A @ B verified.
+
+TSC timer (cycles per PE):
+  Min:  3980
+  Max:  4104
+  Mean: 4041.0
+PASS: sizeX=2 sizeY=8 M=8 H=4 N=16
+========================================
+Testing sizeX=4 sizeY=2 M=4 H=4 N=4
+========================================
+Cleaning up old outputs and logs...
+Running with configuration: sizeX=4, sizeY=2, M=4, H=4, N=4
+compile successful
+SUCCESS: C = A @ B verified.
+
+TSC timer (cycles per PE):
+  Min:  800
+  Max:  831
+  Mean: 816.8
+PASS: sizeX=4 sizeY=2 M=4 H=4 N=4
+========================================
+Testing sizeX=4 sizeY=2 M=8 H=8 N=8
+========================================
+Cleaning up old outputs and logs...
+Running with configuration: sizeX=4, sizeY=2, M=8, H=8, N=8
+compile successful
+SUCCESS: C = A @ B verified.
+
+TSC timer (cycles per PE):
+  Min:  2797
+  Max:  2867
+  Mean: 2834.5
+PASS: sizeX=4 sizeY=2 M=8 H=8 N=8
+========================================
+Testing sizeX=8 sizeY=2 M=16 H=8 N=16
+========================================
+Cleaning up old outputs and logs...
+Running with configuration: sizeX=8, sizeY=2, M=16, H=8, N=16
+compile successful
+SUCCESS: C = A @ B verified.
+
+TSC timer (cycles per PE):
+  Min:  6019
+  Max:  6176
+  Mean: 6101.2
+PASS: sizeX=8 sizeY=2 M=16 H=8 N=16
+========================================
+Testing sizeX=4 sizeY=3 M=6 H=8 N=12
+========================================
+Cleaning up old outputs and logs...
+Running with configuration: sizeX=4, sizeY=3, M=6, H=8, N=12
+compile successful
+SUCCESS: C = A @ B verified.
+
+TSC timer (cycles per PE):
+  Min:  3256
+  Max:  3369
+  Mean: 3314.9
+PASS: sizeX=4 sizeY=3 M=6 H=8 N=12
+========================================
+Testing sizeX=6 sizeY=2 M=4 H=6 N=6
+========================================
+Cleaning up old outputs and logs...
+Running with configuration: sizeX=6, sizeY=2, M=4, H=6, N=6
+compile successful
+SUCCESS: C = A @ B verified.
+
+TSC timer (cycles per PE):
+  Min:  1438
+  Max:  1483
+  Mean: 1462.2
+PASS: sizeX=6 sizeY=2 M=4 H=6 N=6
+========================================
+Testing sizeX=6 sizeY=3 M=6 H=6 N=6
+========================================
+Cleaning up old outputs and logs...
+Running with configuration: sizeX=6, sizeY=3, M=6, H=6, N=6
+compile successful
+SUCCESS: C = A @ B verified.
+
+TSC timer (cycles per PE):
+  Min:  1494
+  Max:  1539
+  Mean: 1518.2
+PASS: sizeX=6 sizeY=3 M=6 H=6 N=6
+========================================
+Testing sizeX=8 sizeY=4 M=8 H=8 N=8
+========================================
+Cleaning up old outputs and logs...
+Running with configuration: sizeX=8, sizeY=4, M=8, H=8, N=8
+compile successful
+SUCCESS: C = A @ B verified.
+
+TSC timer (cycles per PE):
+  Min:  1664
+  Max:  1725
+  Mean: 1696.4
+PASS: sizeX=8 sizeY=4 M=8 H=8 N=8
+========================================
+Testing sizeX=3 sizeY=3 M=6 H=6 N=6
+========================================
+Cleaning up old outputs and logs...
+Running with configuration: sizeX=3, sizeY=3, M=6, H=6, N=6
+compile successful
+SUCCESS: C = A @ B verified.
+
+TSC timer (cycles per PE):
+  Min:  1745
+  Max:  1796
+  Mean: 1772.0
+PASS: sizeX=3 sizeY=3 M=6 H=6 N=6
+
+========================================
+Results: 29 passed, 0 failed out of 29 configs
+========================================
+
+===== CS5220 HW4 LEADERBOARD SUBMISSION =====
+LEADERBOARD_NAME: orange-penguin-419
+TIMESTAMP: 2026-03-26T22:18:41
+
+--- PERF ---
+Cleaning up old outputs and logs...
+Running with configuration: sizeX=8, sizeY=8, M=128, H=256, N=64
+compile successful
+SUCCESS: C = A @ B verified.
+
+TSC timer (cycles per PE):
+  Min:  142665
+  Max:  142817
+  Mean: 142743.9
+PASS: sizeX=8 sizeY=8 M=128 H=256 N=64
+Total cycles: 246515
+Idle cycles:  17861
+Runtime:      228654
+TSC Min:      142665
+TSC Max:      142817
+TSC Mean:     142743.9
+--- END PERF ---
+
+===== END CS5220 HW4 LEADERBOARD SUBMISSION =====
