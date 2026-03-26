@@ -163,12 +163,13 @@ fn get_reduce_state(red_idx: i16) ReduceState {
 
     return state;
 }
+
 // Track how many times we've called the reduction logic to determine the state
 // and when we're done
 var reduction_call_idx: i16 = 0;
 
 fn do_reduction() void {
-  simprint_pe_coords();
+  // simprint_pe_coords();
   // prt.fmt_no_nl("Starting reduction call {d}\n", .{@as(u16, reduction_call_idx)});
 
   const state = get_reduce_state(reduction_call_idx);
@@ -193,11 +194,8 @@ fn do_reduction() void {
     },
   }
 
-  // Zero out the red_in accumulation buffer so it's clean for the next B-column broadcast
-  var i: u16 = 0;
-  while (i < @as(u16, dM)) : (i += 1) {
-    red_in[i] = 0.0;
-  }
+  // Zero out the red_in accumulation buffer using DSD instruction
+  @fmovs(mem_red_in_dsd, 0.0);
 
   reduction_call_idx += 1;
 
@@ -292,8 +290,6 @@ var mem_B_block_dsd = @get_dsd(mem1d_dsd, .{
 // Fabric DSDs
 // -----------------------------------------------------------------------------
 
-// FIXME: not really sure about this one...
-
 // Broadcast send: Pushes B UP the elevator.
 const fab_bcast_out_block_dsd = @get_dsd(fabout_dsd, .{
   .extent = dH * dN_y,
@@ -332,9 +328,6 @@ fn send_all_b_columns() void {
   // simprint_pe_coords();
   // prt.print_string("Starting broadcast of ALL columns of B\n");
 
-  // We fire ONE asynchronous instruction. 
-  // - Because it's 1 instruction, ut_instr[2] does not overflow.
-  // - Because it's async, the microthread yields immediately, preventing deadlocks.
   @fmovs(fab_bcast_out_block_dsd, mem_B_block_dsd, .{ .async = true });
 }
 
