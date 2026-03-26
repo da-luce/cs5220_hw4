@@ -146,10 +146,15 @@ const ReduceState = enum(i16) {
 fn get_reduce_state(call_idx: i16) ReduceState {
     const my_x = @as(i16, layout_mod.get_x_coord());
     
-    // Use division by dN to map the global column index 
-    // to the correct block-distributed PE!
-    const fsum_pe = @as(i16, call_idx / dN);
-    const isum_pe = @as(i16, (fsum_pe + 1) % kernel_x_dim);
+    // We rotate the roles as the README describes.
+    //   Call #    PE0      PE1      PE2      PE3      Chain (ISUM -> ... -> FSUM)
+    // -----   ------   ------   ------   ------    ---------------------------
+    // 0      FSUM     ISUM     PSUM     PSUM     PE1 -> PE2 -> PE3 -> PE0
+    // 1      PSUM     FSUM     ISUM     PSUM     PE2 -> PE3 -> PE0 -> PE1
+    // 2      PSUM     PSUM     FSUM     ISUM     PE3 -> PE0 -> PE1 -> PE2
+    // 3      ISUM     PSUM     PSUM     FSUM     PE0 -> PE1 -> PE2 -> PE3
+    const fsum_pe = @as(i16, call_idx % kernel_x_dim);
+    const isum_pe = @as(i16, (call_idx + 1) % kernel_x_dim);
 
     var state: ReduceState = ReduceState.PSUM;
 
@@ -158,10 +163,6 @@ fn get_reduce_state(call_idx: i16) ReduceState {
     } else if (my_x == fsum_pe) {
         state = ReduceState.FSUM;
     }
-
-    simprint_pe_coords();
-    prt.fmt_no_nl("Reduction call {d}: ISUM={d} ", .{@as(u16, call_idx), @as(u16, isum_pe)});
-    prt.fmt_no_nl("FSUM={d} MyState={d}\n", .{@as(u16, fsum_pe), @as(u16, state)});
 
     return state;
 }
@@ -174,7 +175,7 @@ fn do_reduction() void {
   simprint_pe_coords();
   // prt.fmt_no_nl("Starting reduction call {d}\n", .{@as(u16, reduction_call_idx)});
 
-  const state = get_reduce_state(reduction_call_idx);
+  const state = get_reduce_state(current_row);
 
   // Synchronous execution! The microthread will block until the hardware queue
   // dependencies are met, ensuring perfectly safe handshaking around the ring.
@@ -287,8 +288,8 @@ var mem_C_col_dsd = @get_dsd(mem1d_dsd, .{
 //  Memory DSD spanning the entire local B block
 // Fast because B is row-major, but globally transposed, so the 
 // original columns of B are contiguous chunks of length dH.
-var mem_B_block_dsd = @get_dsd(mem1d_dsd, .{
-  .tensor_access = |i|{dH * dN_y} -> B[i]
+var mem_B_block_dsd = @get_dsd(mem4d_dsd, .{
+    .tensor_access = |i,j|{dH, dN_y} -> B[i * dN_y + j]
 });
 
 // -----------------------------------------------------------------------------
