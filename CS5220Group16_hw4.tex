@@ -97,7 +97,59 @@
 %% article.
 \begin{abstract}
 
-Text here
+My first step in implementing the matrix multiplication algorithm was to establish
+a working column broadcast. I established the necessary layout for the top row to
+broadcast the columns of \texttt{B} to the rest of the grid. The hardest part of this was
+establishing colorswap on the \texttt{RAMP} for the top row (such that when the top row
+broadcasts on \texttt{broadcast\_rx\_color}, it swaps to \texttt{broadcast\_tx\_color} on the \texttt{RAMP} and
+is sent correctly down the column). This required setting swap on the y and x
+directions, which was hard to find within the documentation. I established my top
+row broadcast was working by checking the sim.log to see if all rows in the same
+column were receiving the same data from the top row.
+
+Once I had this working, I extended the column broadcast to the rest of the grid.
+I was a bit confused by the hint for this part, which implied that a \texttt{SWITCH\_ADV}
+control wavelet was needed for signaling the next row to start broadcasting. I 
+found that this was not necessary, and that I could simply maintain the same
+switch state for all PEs on \texttt{broadcast\_tx\_color}. Instead, I sent a \texttt{NOP} control signal
+(meaning no changes to the switch needs to be applied). However, this control signal
+can still trigger a task on the receiving PE's compute engine (CE), which is 
+exactly what we want. So, to trigger the next row to start broadcasting, I simply
+send a control wavelet with two \texttt{NOP} control signals. The first one is popped by 
+the current (sending) row (there is a mask that indicates the first \texttt{NOP} does not trigger a
+CE task). The control wavelet is then routed to the next row, where the second
+\texttt{NOP} is popped. This \texttt{NOP} does trigger a CE task, which starts the next row's
+broadcast. Once again, I established this was working by checking the sim.log to
+see if all rows in the same column were receiving the same data from the top row,
+and that the next row started broadcasting after the previous row finished.
+
+Once I had the column broadcast working, I thought about how to transpose the matrices
+\texttt{A}, \texttt{B}, and \texttt{C} to make DSD access easy and fast. Much like
+from Homework 1, a fast DSD access pattern is one that is contiguous in memory
+(no strides created from multiplication). With the advise of Google Gemini, and
+working through the algorithm on paper, I finalized on a layout, found in
+\texttt{config.py}.
+
+Once the DSD access pattern was established, I implemented the SAXPY operation
+for the inner loop of the matrix multiplication. This was pretty straightforward,
+as it is a single builtin operation on the WSE-2 (\texttt{@fmacs}). I did forget
+to advance A to the next column for the next incoming wavelet, which caused bugs
+in the beginning, but was an easy fix once I realized the mistake.
+
+Finally, I implemented the row reduction to sum up the partial results from each
+row. I implemented the correct layout after understanding how the flyover color
+should function (I misinterpreted the diagram from the recitation at first). I
+initially computed the correct state on each reduction using modulo and division
+operations. However, I realized that this was not necessary, and that I could
+simply maintain the state in an integer on each PE, updating it with each
+incoming wavelet. This proved to be much faster and cut down on tens of thousands 
+of cycles from the reduction phase.
+
+Overall, I ran into many bugs along the way. In addition to the staged implementation
+approach detailed above, the best technique I found for debugging was to maximize
+the visibility of the algorithm's state in the sim.log. This would not only help
+my understanding of how the algorithm was progressing, but also greatly assist
+LLMs in helping me debug.
 
 \end{abstract}
 
