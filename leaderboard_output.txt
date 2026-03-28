@@ -8,9 +8,9 @@ compile successful
 SUCCESS: C = A @ B verified.
 
 TSC timer (cycles per PE):
-  Min:  3545
-  Max:  3607
-  Mean: 3576.0
+  Min:  2129
+  Max:  2194
+  Mean: 2161.5
 PASS: sizeX=2 sizeY=2 M=8 H=8 N=8
 ========================================
 Testing sizeX=4 sizeY=4 M=16 H=16 N=16
@@ -21,9 +21,9 @@ compile successful
 SUCCESS: C = A @ B verified.
 
 TSC timer (cycles per PE):
-  Min:  7107
-  Max:  7258
-  Mean: 7187.2
+  Min:  4272
+  Max:  4432
+  Mean: 4356.8
 PASS: sizeX=4 sizeY=4 M=16 H=16 N=16
 ========================================
 Testing sizeX=2 sizeY=4 M=8 H=8 N=8
@@ -34,9 +34,9 @@ compile successful
 SUCCESS: C = A @ B verified.
 
 TSC timer (cycles per PE):
-  Min:  2628
-  Max:  2685
-  Mean: 2656.2
+  Min:  2038
+  Max:  2095
+  Mean: 2066.2
 PASS: sizeX=2 sizeY=4 M=8 H=8 N=8
 ========================================
 Testing sizeX=2 sizeY=8 M=16 H=16 N=16
@@ -47,9 +47,9 @@ compile successful
 SUCCESS: C = A @ B verified.
 
 TSC timer (cycles per PE):
-  Min:  7970
-  Max:  8100
-  Mean: 8034.6
+  Min:  6768
+  Max:  6898
+  Mean: 6832.6
 PASS: sizeX=2 sizeY=8 M=16 H=16 N=16
 ========================================
 Testing sizeX=4 sizeY=8 M=16 H=16 N=16
@@ -60,9 +60,9 @@ compile successful
 SUCCESS: C = A @ B verified.
 
 TSC timer (cycles per PE):
-  Min:  5287
-  Max:  5440
-  Mean: 5367.5
+  Min:  4109
+  Max:  4262
+  Mean: 4189.5
 PASS: sizeX=4 sizeY=8 M=16 H=16 N=16
 ========================================
 Testing sizeX=4 sizeY=8 M=32 H=16 N=32
@@ -73,9 +73,9 @@ compile successful
 SUCCESS: C = A @ B verified.
 
 TSC timer (cycles per PE):
-  Min:  14291
-  Max:  14617
-  Mean: 14463.9
+  Min:  8569
+  Max:  8895
+  Mean: 8741.9
 PASS: sizeX=4 sizeY=8 M=32 H=16 N=32
 ========================================
 Testing sizeX=2 sizeY=2 M=16 H=16 N=16
@@ -86,9 +86,9 @@ compile successful
 SUCCESS: C = A @ B verified.
 
 TSC timer (cycles per PE):
-  Min:  12110
-  Max:  12245
-  Mean: 12177.5
+  Min:  8114
+  Max:  8249
+  Mean: 8181.5
 PASS: sizeX=2 sizeY=2 M=16 H=16 N=16
 ========================================
 Testing sizeX=2 sizeY=4 M=16 H=8 N=16
@@ -99,9 +99,9 @@ compile successful
 SUCCESS: C = A @ B verified.
 
 TSC timer (cycles per PE):
-  Min:  7146
-  Max:  7280
-  Mean: 7212.8
+  Min:  4284
+  Max:  4418
+  Mean: 4350.8
 PASS: sizeX=2 sizeY=4 M=16 H=8 N=16
 ========================================
 Testing sizeX=3 sizeY=3 M=9 H=9 N=9
@@ -112,9 +112,9 @@ compile successful
 SUCCESS: C = A @ B verified.
 
 TSC timer (cycles per PE):
-  Min:  3979
-  Max:  4058
-  Mean: 4020.3
+  Min:  1922
+  Max:  2001
+  Mean: 1963.3
 PASS: sizeX=3 sizeY=3 M=9 H=9 N=9
 ========================================
 Testing sizeX=3 sizeY=6 M=6 H=9 N=6
@@ -125,9 +125,9 @@ compile successful
 SUCCESS: C = A @ B verified.
 
 TSC timer (cycles per PE):
-  Min:  2128
-  Max:  2175
-  Mean: 2153.2
+  Min:  1419
+  Max:  1468
+  Mean: 1445.2
 PASS: sizeX=3 sizeY=6 M=6 H=9 N=6
 ========================================
 Testing sizeX=3 sizeY=6 M=12 H=9 N=18
@@ -138,9 +138,9 @@ compile successful
 SUCCESS: C = A @ B verified.
 
 TSC timer (cycles per PE):
-  Min:  6460
-  Max:  6623
-  Mean: 6546.5
+  Min:  3680
+  Max:  3843
+  Mean: 3766.5
 PASS: sizeX=3 sizeY=6 M=12 H=9 N=18
 ========================================
 Testing sizeX=6 sizeY=6 M=12 H=12 N=12
@@ -151,9 +151,9 @@ compile successful
 SUCCESS: C = A @ B verified.
 
 TSC timer (cycles per PE):
-  Min:  3548
-  Max:  3653
-  Mean: 3603.8
+  Min:  2160
+  Max:  2265
+  Mean: 2215.8
 PASS: sizeX=6 sizeY=6 M=12 H=12 N=12
 ========================================
 Testing sizeX=2 sizeY=2 M=2 H=2 N=2
@@ -164,9 +164,9 @@ compile successful
 SUCCESS: C = A @ B verified.
 
 TSC timer (cycles per PE):
-  Min:  433
-  Max:  442
-  Mean: 437.5
+  Min:  316
+  Max:  325
+  Mean: 320.5
 PASS: sizeX=2 sizeY=2 M=2 H=2 N=2
 ========================================
 Testing sizeX=4 sizeY=4 M=4 H=4 N=4
@@ -177,9 +177,9 @@ compile successful
 SUCCESS: C = A @ B verified.
 
 TSC timer (cycles per PE):
-  Min:  908
-  Max:  939
-  Mean: 924.8
+  Min:  670
+  Max:  701
+  Mean: 686.8
 PASS: sizeX=4 sizeY=4 M=4 H=4 N=4
 ========================================
 Testing sizeX=3 sizeY=3 M=3 H=3 N=3
@@ -190,9 +190,9 @@ compile successful
 SUCCESS: C = A @ B verified.
 
 TSC timer (cycles per PE):
-  Min:  798
-  Max:  820
-  Mean: 809.7
+  Min:  490
+  Max:  512
+  Mean: 501.7
 PASS: sizeX=3 sizeY=3 M=3 H=3 N=3
 ========================================
 Testing sizeX=2 sizeY=4 M=4 H=4 N=16
@@ -203,9 +203,9 @@ compile successful
 SUCCESS: C = A @ B verified.
 
 TSC timer (cycles per PE):
-  Min:  3748
-  Max:  3861
-  Mean: 3804.5
+  Min:  2558
+  Max:  2678
+  Mean: 2618.0
 PASS: sizeX=2 sizeY=4 M=4 H=4 N=16
 ========================================
 Testing sizeX=2 sizeY=2 M=4 H=2 N=16
@@ -216,9 +216,9 @@ compile successful
 SUCCESS: C = A @ B verified.
 
 TSC timer (cycles per PE):
-  Min:  3105
-  Max:  3226
-  Mean: 3165.5
+  Min:  1893
+  Max:  2014
+  Mean: 1953.5
 PASS: sizeX=2 sizeY=2 M=4 H=2 N=16
 ========================================
 Testing sizeX=2 sizeY=2 M=4 H=16 N=2
@@ -229,9 +229,9 @@ compile successful
 SUCCESS: C = A @ B verified.
 
 TSC timer (cycles per PE):
-  Min:  1004
-  Max:  1012
-  Mean: 1008.0
+  Min:  888
+  Max:  896
+  Mean: 892.0
 PASS: sizeX=2 sizeY=2 M=4 H=16 N=2
 ========================================
 Testing sizeX=4 sizeY=4 M=4 H=16 N=4
@@ -242,9 +242,9 @@ compile successful
 SUCCESS: C = A @ B verified.
 
 TSC timer (cycles per PE):
-  Min:  1362
-  Max:  1391
-  Mean: 1377.8
+  Min:  1112
+  Max:  1141
+  Mean: 1127.8
 PASS: sizeX=4 sizeY=4 M=4 H=16 N=4
 ========================================
 Testing sizeX=2 sizeY=8 M=8 H=8 N=8
@@ -255,9 +255,9 @@ compile successful
 SUCCESS: C = A @ B verified.
 
 TSC timer (cycles per PE):
-  Min:  2808
-  Max:  2871
-  Mean: 2841.8
+  Min:  2202
+  Max:  2268
+  Mean: 2237.2
 PASS: sizeX=2 sizeY=8 M=8 H=8 N=8
 ========================================
 Testing sizeX=2 sizeY=8 M=8 H=4 N=16
@@ -268,9 +268,9 @@ compile successful
 SUCCESS: C = A @ B verified.
 
 TSC timer (cycles per PE):
-  Min:  3980
-  Max:  4104
-  Mean: 4041.0
+  Min:  2786
+  Max:  2917
+  Mean: 2850.5
 PASS: sizeX=2 sizeY=8 M=8 H=4 N=16
 ========================================
 Testing sizeX=4 sizeY=2 M=4 H=4 N=4
@@ -281,9 +281,9 @@ compile successful
 SUCCESS: C = A @ B verified.
 
 TSC timer (cycles per PE):
-  Min:  800
-  Max:  831
-  Mean: 816.8
+  Min:  564
+  Max:  595
+  Mean: 580.8
 PASS: sizeX=4 sizeY=2 M=4 H=4 N=4
 ========================================
 Testing sizeX=4 sizeY=2 M=8 H=8 N=8
@@ -294,9 +294,9 @@ compile successful
 SUCCESS: C = A @ B verified.
 
 TSC timer (cycles per PE):
-  Min:  2797
-  Max:  2867
-  Mean: 2834.5
+  Min:  1442
+  Max:  1515
+  Mean: 1481.0
 PASS: sizeX=4 sizeY=2 M=8 H=8 N=8
 ========================================
 Testing sizeX=8 sizeY=2 M=16 H=8 N=16
@@ -307,9 +307,9 @@ compile successful
 SUCCESS: C = A @ B verified.
 
 TSC timer (cycles per PE):
-  Min:  6019
-  Max:  6176
-  Mean: 6101.2
+  Min:  2335
+  Max:  2492
+  Mean: 2417.2
 PASS: sizeX=8 sizeY=2 M=16 H=8 N=16
 ========================================
 Testing sizeX=4 sizeY=3 M=6 H=8 N=12
@@ -320,9 +320,9 @@ compile successful
 SUCCESS: C = A @ B verified.
 
 TSC timer (cycles per PE):
-  Min:  3256
-  Max:  3369
-  Mean: 3314.9
+  Min:  1967
+  Max:  2080
+  Mean: 2025.9
 PASS: sizeX=4 sizeY=3 M=6 H=8 N=12
 ========================================
 Testing sizeX=6 sizeY=2 M=4 H=6 N=6
@@ -333,9 +333,9 @@ compile successful
 SUCCESS: C = A @ B verified.
 
 TSC timer (cycles per PE):
-  Min:  1438
-  Max:  1483
-  Mean: 1462.2
+  Min:  816
+  Max:  861
+  Mean: 840.2
 PASS: sizeX=6 sizeY=2 M=4 H=6 N=6
 ========================================
 Testing sizeX=6 sizeY=3 M=6 H=6 N=6
@@ -346,9 +346,9 @@ compile successful
 SUCCESS: C = A @ B verified.
 
 TSC timer (cycles per PE):
-  Min:  1494
-  Max:  1539
-  Mean: 1518.2
+  Min:  871
+  Max:  916
+  Mean: 895.2
 PASS: sizeX=6 sizeY=3 M=6 H=6 N=6
 ========================================
 Testing sizeX=8 sizeY=4 M=8 H=8 N=8
@@ -359,9 +359,9 @@ compile successful
 SUCCESS: C = A @ B verified.
 
 TSC timer (cycles per PE):
-  Min:  1664
-  Max:  1725
-  Mean: 1696.4
+  Min:  1194
+  Max:  1255
+  Mean: 1226.4
 PASS: sizeX=8 sizeY=4 M=8 H=8 N=8
 ========================================
 Testing sizeX=3 sizeY=3 M=6 H=6 N=6
@@ -372,9 +372,9 @@ compile successful
 SUCCESS: C = A @ B verified.
 
 TSC timer (cycles per PE):
-  Min:  1745
-  Max:  1796
-  Mean: 1772.0
+  Min:  1050
+  Max:  1101
+  Mean: 1077.0
 PASS: sizeX=3 sizeY=3 M=6 H=6 N=6
 
 ========================================
@@ -383,7 +383,7 @@ Results: 29 passed, 0 failed out of 29 configs
 
 ===== CS5220 HW4 LEADERBOARD SUBMISSION =====
 LEADERBOARD_NAME: orange-penguin-419
-TIMESTAMP: 2026-03-26T22:18:41
+TIMESTAMP: 2026-03-28T18:37:04
 
 --- PERF ---
 Cleaning up old outputs and logs...
@@ -392,16 +392,16 @@ compile successful
 SUCCESS: C = A @ B verified.
 
 TSC timer (cycles per PE):
-  Min:  142665
-  Max:  142817
-  Mean: 142743.9
+  Min:  115743
+  Max:  115895
+  Mean: 115821.9
 PASS: sizeX=8 sizeY=8 M=128 H=256 N=64
-Total cycles: 246515
-Idle cycles:  17861
-Runtime:      228654
-TSC Min:      142665
-TSC Max:      142817
-TSC Mean:     142743.9
+Total cycles: 217898
+Idle cycles:  16169
+Runtime:      201729
+TSC Min:      115743
+TSC Max:      115895
+TSC Mean:     115821.9
 --- END PERF ---
 
 ===== END CS5220 HW4 LEADERBOARD SUBMISSION =====
