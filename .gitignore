@@ -6,3 +6,14 @@ config.pyc
 sim_stats.json
 *.pdf
 *.gz
+
+# LaTeX auxiliary files
+*.aux
+*.log
+*.out
+*.toc
+*.lof
+*.lot
+*.fls
+*.fdb_latexmk
+*.cut
